@@ -1,6 +1,6 @@
 /**
  * Nordic Nature — Express + PostgreSQL API
- * Auth (JWT), Products CRUD, Settings, Users admin, Orders
+ * Auth (JWT), Products CRUD, Settings, Users admin, Orders, Email notifications
  */
 require('dotenv').config();
 const express = require('express');
@@ -9,6 +9,7 @@ const path = require('path');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const { Pool } = require('pg');
+const nodemailer = require('nodemailer');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -138,6 +139,75 @@ function authMiddleware(req, res, next) {
 function adminOnly(req, res, next) {
   if (req.user?.role !== 'admin') return res.status(403).json({ error: 'Forbidden' });
   next();
+}
+
+// Email (nodemailer)
+const SMTP_HOST = process.env.SMTP_HOST || '';
+const SMTP_PORT = Number(process.env.SMTP_PORT || 587);
+const SMTP_USER = process.env.SMTP_USER || '';
+const SMTP_PASS = process.env.SMTP_PASS || '';
+const SMTP_FROM = process.env.SMTP_FROM || 'no-reply@example.com';
+const ADMIN_EMAIL = process.env.ADMIN_EMAIL || '';
+
+let transporter = null;
+if (SMTP_HOST) {
+  transporter = nodemailer.createTransport({
+    host: SMTP_HOST,
+    port: SMTP_PORT,
+    secure: SMTP_PORT === 465,
+    auth: SMTP_USER ? { user: SMTP_USER, pass: SMTP_PASS } : undefined
+  });
+}
+
+async function sendOrderEmails(order, items) {
+  if (!transporter) return;
+  const lines = items.map(it => `- ${it.name} x ${it.qty} — ₺${Number(it.price).toFixed(2)}`).join('\n');
+  const summary =
+`Sipariş Numaranız: #${order.id}
+Merhaba ${order.name},
+
+Siparişiniz alındı. Detaylar:
+
+${lines}
+
+Ara Toplam: ₺${Number(order.subtotal).toFixed(2)}
+Kargo: ₺${Number(order.shipping).toFixed(2)}
+Toplam: ₺${Number(order.total).toFixed(2)}
+
+Teslimat:
+${order.address}
+${order.city} ${order.postal_code}
+
+Teşekkürler,
+Nordic Nature`;
+
+  await transporter.sendMail({
+    from: SMTP_FROM,
+    to: order.email,
+    subject: `Sipariş Alındı — #${order.id}`,
+    text: summary
+  });
+
+  if (ADMIN_EMAIL) {
+    const adminText =
+`Yeni Sipariş: #${order.id}
+Müşteri: ${order.name} <${order.email}>
+Toplam: ₺${Number(order.total).toFixed(2)}
+
+Ürünler:
+${lines}
+
+Adres:
+${order.address}
+${order.city} ${order.postal_code}
+`;
+    await transporter.sendMail({
+      from: SMTP_FROM,
+      to: ADMIN_EMAIL,
+      subject: `Yeni Sipariş — #${order.id}`,
+      text: adminText
+    });
+  }
 }
 
 // Routes
@@ -343,6 +413,12 @@ app.post('/api/orders', authMiddleware, async (req, res) => {
       params
     );
 
+    // Send emails (non-blocking)
+    sendOrderEmails(
+      { id: orderId, name, email, address, city, postal_code, subtotal, shipping, total },
+      normalized
+    ).catch(() => {});
+
     res.json({ orderId, subtotal, shipping, total });
   } catch (e) {
     console.error(e);
@@ -410,40 +486,12 @@ app.put('/api/orders/:id', authMiddleware, adminOnly, async (req, res) => {
     res.status(500).json({ error: 'Server error' });
   }
 });
-  } catch (e) {
-    console.error(e);
-    res.status(500).json({ error: 'Server error' });
-  }
-});
-  } catch (e) {
-    console.error(e);
-    res.status(500).json({ error: 'Server error' });
-  }
-});
 
 // Fallback to index.html for SPA-like routing if needed
 app.get('*', (req, res, next) => {
   if (req.path.startsWith('/api/')) return next();
   res.sendFile(path.join(__dirname, 'index.html'));
 });
-
-initDb()
-  .then(() => {
-    app.listen(PORT, () => console.log(`API running on http://localhost:${PORT}`));
-  })
-  .catch((e) => {
-    console.error('DB init error:', e);
-    process.exit(1);
-  });
-
-initDb()
-  .then(() => {
-    app.listen(PORT, () => console.log(`API running on http://localhost:${PORT}`));
-  })
-  .catch((e) => {
-    console.error('DB init error:', e);
-    process.exit(1);
-  });
 
 initDb()
   .then(() => {
