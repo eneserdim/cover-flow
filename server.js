@@ -1,6 +1,6 @@
 /**
  * Nordic Nature — Express + PostgreSQL API
- * Auth (JWT), Products CRUD, Settings, Users admin
+ * Auth (JWT), Products CRUD, Settings, Users admin, Orders
  */
 require('dotenv').config();
 const express = require('express');
@@ -65,6 +65,34 @@ async function initDb() {
       hero_desc TEXT
     );
   `);
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS orders (
+      id SERIAL PRIMARY KEY,
+      user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+      email TEXT NOT NULL,
+      name TEXT NOT NULL,
+      address TEXT NOT NULL,
+      city TEXT NOT NULL,
+      postal_code TEXT NOT NULL,
+      subtotal NUMERIC(12,2) NOT NULL,
+      shipping NUMERIC(12,2) NOT NULL,
+      total NUMERIC(12,2) NOT NULL,
+      status TEXT NOT NULL DEFAULT 'new',
+      created_at TIMESTAMP DEFAULT NOW()
+    );
+  `);
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS order_items (
+      id SERIAL PRIMARY KEY,
+      order_id INTEGER REFERENCES orders(id) ON DELETE CASCADE,
+      product_id TEXT NOT NULL,
+      name TEXT NOT NULL,
+      image TEXT NOT NULL,
+      price NUMERIC(12,2) NOT NULL,
+      qty INTEGER NOT NULL
+    );
+  `);
+
   // Ensure settings single row
   const res = await pool.query(`SELECT id FROM settings WHERE id = TRUE`);
   if (res.rows.length === 0) {
@@ -269,11 +297,101 @@ app.delete('/api/users/:id', authMiddleware, adminOnly, async (req, res) => {
   }
 });
 
+// Orders
+app.post('/api/orders', authMiddleware, async (req, res) => {
+  try {
+    const { name, email, address, city, postal_code, items } = req.body;
+    if (!name || !email || !address || !city || !postal_code || !Array.isArray(items) || items.length === 0) {
+      return res.status(400).json({ error: 'Missing fields' });
+    }
+
+    // Fetch products and compute totals
+    const ids = items.map(i => i.id);
+    const r = await pool.query(`SELECT id, name, image, price FROM products WHERE id = ANY($1::text[])`, [ids]);
+    const map = new Map(r.rows.map(p => [p.id, p]));
+    let subtotal = 0;
+    const normalized = [];
+    for (const it of items) {
+      const p = map.get(it.id);
+      if (!p) return res.status(400).json({ error: `Product not found: ${it.id}` });
+      const qty = Math.max(1, parseInt(it.qty || 1, 10));
+      const price = Number(p.price);
+      subtotal += price * qty;
+      normalized.push({ product_id: p.id, name: p.name, image: p.image, price, qty });
+    }
+    const shipping = subtotal > 1000 ? 0 : (subtotal > 0 ? 49.90 : 0);
+    const total = subtotal + shipping;
+
+    // Create order
+    const or = await pool.query(
+      `INSERT INTO orders (user_id, email, name, address, city, postal_code, subtotal, shipping, total)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING id`,
+      [req.user?.id || null, email, name, address, city, postal_code, subtotal, shipping, total]
+    );
+    const orderId = or.rows[0].id;
+
+    // Insert items
+    const values = [];
+    const params = [];
+    let idx = 1;
+    normalized.forEach(it => {
+      params.push(orderId, it.product_id, it.name, it.image, it.price, it.qty);
+      values.push(`(${idx++}, ${idx++}, ${idx++}, ${idx++}, ${idx++}, ${idx++})`);
+    });
+    await pool.query(
+      `INSERT INTO order_items (order_id, product_id, name, image, price, qty) VALUES ${values.join(',')}`,
+      params
+    );
+
+    res.json({ orderId, subtotal, shipping, total });
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+app.get('/api/orders/mine', authMiddleware, async (req, res) => {
+  try {
+    const r = await pool.query(
+      `SELECT id, email, name, address, city, postal_code, subtotal, shipping, total, status, created_at
+       FROM orders WHERE user_id = $1 ORDER BY created_at DESC`,
+      [req.user.id]
+    );
+    res.json({ orders: r.rows });
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+app.get('/api/orders', authMiddleware, adminOnly, async (req, res) => {
+  try {
+    const r = await pool.query(
+      `SELECT o.id, o.email, o.name, o.subtotal, o.shipping, o.total, o.status, o.created_at, u.email as user_email
+       FROM orders o LEFT JOIN users u ON u.id = o.user_id
+       ORDER BY o.created_at DESC LIMIT 200`
+    );
+    res.json({ orders: r.rows });
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
 // Fallback to index.html for SPA-like routing if needed
 app.get('*', (req, res, next) => {
   if (req.path.startsWith('/api/')) return next();
   res.sendFile(path.join(__dirname, 'index.html'));
 });
+
+initDb()
+  .then(() => {
+    app.listen(PORT, () => console.log(`API running on http://localhost:${PORT}`));
+  })
+  .catch((e) => {
+    console.error('DB init error:', e);
+    process.exit(1);
+  });
 
 initDb()
   .then(() => {

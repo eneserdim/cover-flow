@@ -600,20 +600,56 @@ https://templatemo.com/tm-595-3d-coverflow
         searchInput?.addEventListener('input', () => renderProducts(getSortedFiltered()));
         sortSelect?.addEventListener('change', () => renderProducts(getSortedFiltered()));
 
-        // Checkout
-        checkoutForm?.addEventListener('submit', (e) => {
+        // Checkout (create order via API)
+        checkoutForm?.addEventListener('submit', async (e) => {
             e.preventDefault();
             if (cart.length === 0) {
                 alert('Sepetiniz boş.');
                 return;
             }
-            const totals = calcTotals();
-            alert(`Teşekkürler! Siparişiniz alındı.\nToplam: ${formatPrice(totals.total)}\n(Bu demo bir ödeme simülasyonudur.)`);
-            cart = [];
-            saveCart();
-            updateCartCount();
-            renderCart();
-            e.target.reset();
+            const token = localStorage.getItem('nordic_token') || '';
+            if (!token) {
+                alert('Siparişi tamamlamak için lütfen giriş yapın.');
+                // login modal varsa açalım
+                const lm = document.getElementById('loginModal');
+                if (lm) lm.classList.add('visible');
+                return;
+            }
+            const inputs = checkoutForm.querySelectorAll('input');
+            // Beklenen sıralama: Ad Soyad, E-posta, Adres, Şehir, Posta Kodu, Kart
+            const name = (inputs[0]?.value || '').trim();
+            const email = (inputs[1]?.value || '').trim().toLowerCase();
+            const address = (inputs[2]?.value || '').trim();
+            const city = (inputs[3]?.value || '').trim();
+            const postal = (inputs[4]?.value || '').trim();
+            if (!name || !email || !address || !city || !postal) {
+                alert('Lütfen teslimat bilgilerini eksiksiz doldurun.');
+                return;
+            }
+            const items = cart.map(it => ({ id: it.id, qty: it.qty }));
+            try {
+                const res = await fetch('/api/orders', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': 'Bearer ' + token
+                    },
+                    body: JSON.stringify({ name, email, address, city, postal_code: postal, items })
+                });
+                if (!res.ok) {
+                    const err = await res.json().catch(() => ({}));
+                    return alert('Sipariş oluşturulamadı: ' + (err.error || res.status));
+                }
+                const data = await res.json();
+                alert(`Teşekkürler! Siparişiniz alındı.\nSipariş No: ${data.orderId}\nToplam: ${formatPrice(Number(data.total))}`);
+                cart = [];
+                saveCart();
+                updateCartCount();
+                renderCart();
+                e.target.reset();
+            } catch {
+                alert('Sipariş sırasında bir hata oluştu. Lütfen tekrar deneyin.');
+            }
         });
 
         // Initialize
