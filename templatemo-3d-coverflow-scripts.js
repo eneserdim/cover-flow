@@ -1,4 +1,4 @@
-/*
+
 
 TemplateMo 595 3d coverflow
 
@@ -373,11 +373,487 @@ https://templatemo.com/tm-595-3d-coverflow
         // Form submission
         function handleSubmit(event) {
             event.preventDefault();
-            alert('Thank you for your message! We\'ll get back to you soon.');
+            alert('Teşekkürler! Mesajınızı aldık, en kısa sürede dönüş yapacağız.');
             event.target.reset();
         }
+
+        /* ====== E‑Ticaret: Ürünler, Sepet ve Ödeme ====== */
+        const products = [
+            { id: 'mountain', name: 'Dağ Manzarası Baskı', image: 'images/mountain-landscape.jpg', price: 799.90 },
+            { id: 'forest', name: 'Orman Yolu Baskı', image: 'images/forest-path.jpg', price: 699.90 },
+            { id: 'lake', name: 'Göl Yansıması Baskı', image: 'images/serene-water-mirroring.jpg', price: 749.90 },
+            { id: 'ocean', name: 'Okyanus Gün Batımı Baskı', image: 'images/ocean-sunset-golden-hour.jpg', price: 729.90 },
+            { id: 'desert', name: 'Çöl Kum Tepeleri Baskı', image: 'images/rolling-sand-dunes.jpg', price: 699.90 },
+            { id: 'night', name: 'Yıldızlı Gece Baskı', image: 'images/starry-night.jpg', price: 799.90 },
+            { id: 'waterfall', name: 'Şelale Baskı', image: 'images/cascading-waterfall.jpg', price: 749.90 },
+        ];
+
+        const productGrid = document.getElementById('productGrid');
+        const searchInput = document.getElementById('searchInput');
+        const sortSelect = document.getElementById('sortSelect');
+        const cartCountEl = document.getElementById('cartCount');
+        const cartDrawer = document.getElementById('cartDrawer');
+        const cartBackdrop = document.getElementById('cartBackdrop');
+        const openCartBtn = document.getElementById('openCartBtn');
+        const closeCartBtn = document.getElementById('closeCartBtn');
+        const cartItemsEl = document.getElementById('cartItems');
+        const subtotalText = document.getElementById('subtotalText');
+        const shippingText = document.getElementById('shippingText');
+        const totalText = document.getElementById('totalText');
+
+        const summaryItemsEl = document.getElementById('summaryItems');
+        const summarySubtotalEl = document.getElementById('summarySubtotal');
+        const summaryShippingEl = document.getElementById('summaryShipping');
+        const summaryTotalEl = document.getElementById('summaryTotal');
+        const checkoutForm = document.getElementById('checkoutForm');
+
+        let cart = [];
+        const CURRENCY = '₺';
+
+        function formatPrice(n) {
+            return CURRENCY + n.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        }
+
+        function loadCart() {
+            try {
+                const raw = localStorage.getItem('nordic_cart');
+                cart = raw ? JSON.parse(raw) : [];
+            } catch {
+                cart = [];
+            }
+        }
+        function saveCart() {
+            localStorage.setItem('nordic_cart', JSON.stringify(cart));
+        }
+
+        function updateCartCount() {
+            const count = cart.reduce((sum, it) => sum + it.qty, 0);
+            cartCountEl.textContent = String(count);
+        }
+
+        function renderProducts(list) {
+            if (!productGrid) return;
+            productGrid.innerHTML = '';
+            list.forEach(p => {
+                const el = document.createElement('div');
+                el.className = 'product-card';
+                el.innerHTML = `
+                    <div class="product-media"><img src="${p.image}" alt="${p.name}"></div>
+                    <div class="product-body">
+                        <div class="product-title">${p.name}</div>
+                        <div class="product-meta">
+                            <span class="price-text">${formatPrice(p.price)}</span>
+                            <span>300gsm Mat</span>
+                        </div>
+                        <div class="product-actions">
+                            <button class="btn" data-id="${p.id}" data-action="details">Detay</button>
+                            <button class="btn primary" data-id="${p.id}" data-action="add">Sepete Ekle</button>
+                        </div>
+                    </div>
+                `;
+                productGrid.appendChild(el);
+            });
+        }
+
+        function getSortedFiltered() {
+            const q = (searchInput?.value || '').toLowerCase().trim();
+            let list = products.filter(p =>
+                p.name.toLowerCase().includes(q)
+            );
+            const sort = sortSelect?.value;
+            if (sort === 'priceAsc') list.sort((a, b) => a.price - b.price);
+            else if (sort === 'priceDesc') list.sort((a, b) => b.price - a.price);
+            else if (sort === 'nameAsc') list.sort((a, b) => a.name.localeCompare(b.name, 'tr'));
+            else if (sort === 'nameDesc') list.sort((a, b) => b.name.localeCompare(a.name, 'tr'));
+            return list;
+        }
+
+        function addToCart(id, qty = 1) {
+            const p = products.find(x => x.id === id);
+            if (!p) return;
+            const existing = cart.find(x => x.id === id);
+            if (existing) existing.qty += qty;
+            else cart.push({ id, qty: qty });
+            saveCart();
+            updateCartCount();
+            renderCart();
+        }
+
+        function removeFromCart(id) {
+            cart = cart.filter(x => x.id !== id);
+            saveCart();
+            updateCartCount();
+            renderCart();
+        }
+
+        function setQty(id, qty) {
+            const item = cart.find(x => x.id === id);
+            if (!item) return;
+            item.qty = Math.max(1, qty);
+            saveCart();
+            updateCartCount();
+            renderCart();
+        }
+
+        function calcTotals() {
+            const subtotal = cart.reduce((sum, it) => {
+                const p = products.find(x => x.id === it.id);
+                return sum + (p ? p.price * it.qty : 0);
+            }, 0);
+            const shipping = subtotal > 1000 ? 0 : (subtotal > 0 ? 49.90 : 0);
+            const total = subtotal + shipping;
+            return { subtotal, shipping, total };
+        }
+
+        function renderCart() {
+            if (!cartItemsEl) return;
+            cartItemsEl.innerHTML = '';
+            cart.forEach(it => {
+                const p = products.find(x => x.id === it.id);
+                if (!p) return;
+                const row = document.createElement('div');
+                row.className = 'cart-item';
+                row.innerHTML = `
+                    <img src="${p.image}" alt="${p.name}">
+                    <div>
+                        <div class="cart-item-title">${p.name}</div>
+                        <div class="qty-row">
+                            <button class="qty-btn" data-id="${p.id}" data-action="dec">−</button>
+                            <span>${it.qty}</span>
+                            <button class="qty-btn" data-id="${p.id}" data-action="inc">+</button>
+                            <button class="qty-btn" data-id="${p.id}" data-action="remove" title="Kaldır">×</button>
+                        </div>
+                    </div>
+                    <div class="price-text">${formatPrice(p.price * it.qty)}</div>
+                `;
+                cartItemsEl.appendChild(row);
+            });
+            const totals = calcTotals();
+            subtotalText.textContent = formatPrice(totals.subtotal);
+            shippingText.textContent = formatPrice(totals.shipping);
+            totalText.textContent = formatPrice(totals.total);
+            renderSummary();
+        }
+
+        function renderSummary() {
+            if (!summaryItemsEl) return;
+            summaryItemsEl.innerHTML = '';
+            cart.forEach(it => {
+                const p = products.find(x => x.id === it.id);
+                if (!p) return;
+                const el = document.createElement('div');
+                el.className = 'summary-item';
+                el.innerHTML = `<span>${p.name} × ${it.qty}</span><span>${formatPrice(p.price * it.qty)}</span>`;
+                summaryItemsEl.appendChild(el);
+            });
+            const totals = calcTotals();
+            summarySubtotalEl.textContent = formatPrice(totals.subtotal);
+            summaryShippingEl.textContent = formatPrice(totals.shipping);
+            summaryTotalEl.textContent = formatPrice(totals.total);
+        }
+
+        function openCart() {
+            cartDrawer.classList.add('open');
+            cartBackdrop.classList.add('visible');
+            cartDrawer.setAttribute('aria-hidden', 'false');
+        }
+        function closeCart() {
+            cartDrawer.classList.remove('open');
+            cartBackdrop.classList.remove('visible');
+            cartDrawer.setAttribute('aria-hidden', 'true');
+        }
+
+        // Events: product grid actions
+        productGrid?.addEventListener('click', (e) => {
+            const target = e.target.closest('[data-action]');
+            if (!target) return;
+            const id = target.getAttribute('data-id');
+            const action = target.getAttribute('data-action');
+            if (action === 'add') {
+                addToCart(id, 1);
+                openCart();
+            } else if (action === 'details') {
+                const p = products.find(x => x.id === id);
+                if (p) alert(`${p.name}\n\nKağıt: 300gsm Mat\nMürekkep: Arşiv\nKargo: 48 saat içinde`);
+            }
+        });
+
+        // Events: cart drawer controls
+        openCartBtn?.addEventListener('click', () => {
+            if (cartDrawer.classList.contains('open')) closeCart();
+            else openCart();
+        });
+        closeCartBtn?.addEventListener('click', closeCart);
+        cartBackdrop?.addEventListener('click', closeCart);
+
+        cartItemsEl?.addEventListener('click', (e) => {
+            const btn = e.target.closest('.qty-btn');
+            if (!btn) return;
+            const id = btn.getAttribute('data-id');
+            const action = btn.getAttribute('data-action');
+            if (action === 'inc') setQty(id, (cart.find(x => x.id === id)?.qty || 1) + 1);
+            else if (action === 'dec') setQty(id, (cart.find(x => x.id === id)?.qty || 1) - 1);
+            else if (action === 'remove') removeFromCart(id);
+        });
+
+        // Search/sort
+        searchInput?.addEventListener('input', () => renderProducts(getSortedFiltered()));
+        sortSelect?.addEventListener('change', () => renderProducts(getSortedFiltered()));
+
+        // Checkout (create order via API) + PAYTR init
+        checkoutForm?.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            if (cart.length === 0) {
+                alert('Sepetiniz boş.');
+                return;
+            }
+            const token = localStorage.getItem('nordic_token') || '';
+            if (!token) {
+                alert('Siparişi tamamlamak için lütfen giriş yapın.');
+                const lm = document.getElementById('loginModal');
+                if (lm) lm.classList.add('visible');
+                return;
+            }
+            const inputs = checkoutForm.querySelectorAll('input');
+            const name = (inputs[0]?.value || '').trim();
+            const email = (inputs[1]?.value || '').trim().toLowerCase();
+            const address = (inputs[2]?.value || '').trim();
+            const city = (inputs[3]?.value || '').trim();
+            const postal = (inputs[4]?.value || '').trim();
+            if (!name || !email || !address || !city || !postal) {
+                alert('Lütfen teslimat bilgilerini eksiksiz doldurun.');
+                return;
+            }
+            const items = cart.map(it => ({ id: it.id, qty: it.qty }));
+            try {
+                const res = await fetch('/api/orders', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': 'Bearer ' + token
+                    },
+                    body: JSON.stringify({ name, email, address, city, postal_code: postal, items })
+                });
+                if (!res.ok) {
+                    const err = await res.json().catch(() => ({}));
+                    return alert('Sipariş oluşturulamadı: ' + (err.error || res.status));
+                }
+                const data = await res.json();
+
+                // Try PAYTR init
+                const paytrRes = await fetch('/api/paytr/init', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': 'Bearer ' + token
+                    },
+                    body: JSON.stringify({ orderId: data.orderId })
+                });
+                let paytr = null;
+                if (paytrRes.ok) {
+                    paytr = await paytrRes.json();
+                }
+
+                if (paytr && paytr.enabled && paytr.token) {
+                    const m = document.getElementById('paymentModal');
+                    const c = document.getElementById('paymentContainer');
+                    c.innerHTML = `<iframe src="https://www.paytr.com/odeme/guvenli/${paytr.token}" frameborder="0" scrolling="auto" style="width:100%;height:600px;"></iframe>`;
+                    m.classList.add('visible');
+                    m.setAttribute('aria-hidden','false');
+
+                    // Poll order status until paid/cancelled or timeout
+                    let elapsed = 0;
+                    const pollIntervalMs = 2000;
+                    const timeoutMs = 5 * 60 * 1000; // 5 dakika
+                    const pollTimer = setInterval(async () => {
+                        elapsed += pollIntervalMs;
+                        try {
+                            const r = await fetch(`/api/orders/${data.orderId}/status`, {
+                                headers: { 'Authorization': 'Bearer ' + token }
+                            });
+                            if (r.ok) {
+                                const s = await r.json();
+                                if (s.status === 'paid') {
+                                    clearInterval(pollTimer);
+                                    m.classList.remove('visible');
+                                    m.setAttribute('aria-hidden','true');
+                                    alert(`Ödeme başarılı. Siparişiniz onaylandı.\nSipariş No: ${data.orderId}`);
+                                    cart = [];
+                                    saveCart();
+                                    updateCartCount();
+                                    renderCart();
+                                    e.target.reset();
+                                } else if (s.status === 'cancelled') {
+                                    clearInterval(pollTimer);
+                                    m.classList.remove('visible');
+                                    m.setAttribute('aria-hidden','true');
+                                    alert('Ödeme iptal edildi veya başarısız oldu.');
+                                }
+                            }
+                        } catch {}
+                        if (elapsed >= timeoutMs) {
+                            clearInterval(pollTimer);
+                        }
+                    }, pollIntervalMs);
+                } else {
+                    alert(`Teşekkürler! Siparişiniz alındı.\nSipariş No: ${data.orderId}\nToplam: ${formatPrice(Number(data.total))}`);
+                    cart = [];
+                    saveCart();
+                    updateCartCount();
+                    renderCart();
+                    e.target.reset();
+                }
+            } catch {
+                alert('Sipariş sırasında bir hata oluştu. Lütfen tekrar deneyin.');
+            }
+        });
+
+        document.getElementById('paymentClose')?.addEventListener('click', () => {
+            const m = document.getElementById('paymentModal');
+            m.classList.remove('visible');
+            m.setAttribute('aria-hidden','true');
+            // Not: ödeme durumu admin panelinden görülebilir; burada sepet temizlenmez.
+        });
 
         // Initialize
         updateCoverflow();
         container.focus();
         startAutoplay();
+
+        // Initialize shop/cart
+        loadCart();
+        updateCartCount();
+        renderProducts(products);
+        renderCart();
+
+        // My Orders (user)
+        const myOrdersLink = document.getElementById('myOrdersLink');
+        const myOrdersList = document.getElementById('myOrdersList');
+
+        function getCurrentUser(){
+            try{ const raw = localStorage.getItem('nordic_current_user'); return raw ? JSON.parse(raw) : null; }catch{ return null; }
+        }
+        function updateUserNav(){
+            const user = getCurrentUser();
+            if (user){
+                if (myOrdersLink) myOrdersLink.style.display = 'inline-block';
+            } else {
+                if (myOrdersLink) myOrdersLink.style.display = 'none';
+            }
+        }
+        updateUserNav();
+
+        async function renderMyOrders(){
+            if (!myOrdersList) return;
+            myOrdersList.innerHTML = '';
+            const token = localStorage.getItem('nordic_token') || '';
+            if (!token) {
+                const hint = document.createElement('div');
+                hint.textContent = 'Siparişlerinizi görmek için lütfen giriş yapın.';
+                myOrdersList.appendChild(hint);
+                return;
+            }
+            try{
+                const res = await fetch('/api/orders/mine', { headers: { 'Authorization': 'Bearer ' + token } });
+                if (!res.ok) throw new Error('fetch failed');
+                const data = await res.json();
+                const orders = data?.orders || [];
+                if (orders.length === 0){
+                    const hint = document.createElement('div');
+                    hint.textContent = 'Henüz siparişiniz yok.';
+                    myOrdersList.appendChild(hint);
+                    return;
+                }
+                orders.forEach(o => {
+                    const row = document.createElement('div');
+                    row.className = 'order-row';
+                    const created = new Date(o.created_at).toLocaleString('tr-TR');
+                    row.innerHTML = `
+                        <div>#${o.id}<br><small>${created}</small></div>
+                        <div>${o.name}<br><small>${o.email}</small></div>
+                        <div>Toplam: ₺${Number(o.total).toFixed(2)}</div>
+                        <div>Durum: ${o.status}</div>
+                        <div style="display:flex;gap:6px;">
+                          <button class="btn" data-id="${o.id}" data-action="details">Detay</button>
+                        </div>
+                    `;
+                    myOrdersList.appendChild(row);
+                });
+            } catch {
+                const hint = document.createElement('div');
+                hint.textContent = 'Siparişler alınamadı.';
+                myOrdersList.appendChild(hint);
+            }
+        }
+
+        // My order details modal
+        myOrdersList?.addEventListener('click', async (e) => {
+            const btn = e.target.closest('button[data-action="details"]');
+            if (!btn) return;
+            const id = btn.getAttribute('data-id');
+            const token = localStorage.getItem('nordic_token') || '';
+            try {
+                const r = await fetch(`/api/orders/${id}/owner`, { headers: { 'Authorization': 'Bearer ' + token } });
+                if (!r.ok) return alert('Sipariş detayları alınamadı.');
+                const data = await r.json();
+                const o = data.order;
+                const items = data.items || [];
+                const refunds = data.refunds || [];
+                const created = new Date(o.created_at).toLocaleString('tr-TR');
+                const body = document.getElementById('myOrderModalBody');
+                body.innerHTML = `
+                    <div><strong>#${o.id}</strong> • ${created} • Durum: ${o.status}</div>
+                    <div style="margin-top:8px;">
+                      <div>${o.name} — ${o.email}</div>
+                      <div>${o.address}, ${o.city} ${o.postal_code}</div>
+                    </div>
+                    <div class="order-items">
+                      ${items.map(it => `
+                        <div class="order-item-row">
+                          <img src="${it.image}" alt="${it.name}" />
+                          <div>${it.name}<br><small>${it.product_id}</small></div>
+                          <div>₺${Number(it.price).toFixed(2)}</div>
+                          <div>× ${it.qty}</div>
+                        </div>
+                      `).join('')}
+                    </div>
+                    <div style="margin-top:10px;display:flex;gap:10px;justify-content:flex-end;">
+                      <div>Ara Toplam: ₺${Number(o.subtotal).toFixed(2)}</div>
+                      <div>Kargo: ₺${Number(o.shipping).toFixed(2)}</div>
+                      <div><strong>Toplam: ₺${Number(o.total).toFixed(2)}</strong></div>
+                    </div>
+                    <div style="margin-top:14px;">
+                      <h4>İade Geçmişi</h4>
+                      ${
+                        refunds.length
+                          ? refunds.map(r => `<div>- ₺${Number(r.amount).toFixed(2)} • ${new Date(r.created_at).toLocaleString('tr-TR')} ${r.reference_no ? `(Ref: ${r.reference_no})` : ''}</div>`).join('')
+                          : '<div>İade kaydı yok.</div>'
+                      }
+                    </div>
+                `;
+                const m = document.getElementById('myOrderModal');
+                m.classList.add('visible');
+                m.setAttribute('aria-hidden','false');
+            } catch {
+                alert('Sipariş detayları alınamadı.');
+            }
+        });
+
+        document.getElementById('myOrderModalClose')?.addEventListener('click', () => {
+            const m = document.getElementById('myOrderModal');
+            m.classList.remove('visible');
+            m.setAttribute('aria-hidden','true');
+        });
+
+        document.getElementById('myOrderModal')?.addEventListener('click', (e) => {
+            if (e.target.id === 'myOrderModal'){
+                const m = document.getElementById('myOrderModal');
+                m.classList.remove('visible');
+                m.setAttribute('aria-hidden','true');
+            }
+        });
+
+        // When navigating to #myorders, render list
+        document.querySelector('a#myOrdersLink')?.addEventListener('click', () => {
+            setTimeout(renderMyOrders, 100);
+        });

@@ -1,17 +1,14 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="tr">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>3D Coverflow - One Page Portfolio</title>
+    <title>Nordic Nature - E‑Ticaret</title>
     <link href="templatemo-3d-coverflow.css" rel="stylesheet">
-<!--
-
-TemplateMo 595 3d coverflow
-
-https://templatemo.com/tm-595-3d-coverflow
-
--->
+    <!--
+    TemplateMo 595 3d coverflow
+    https://templatemo.com/tm-595-3d-coverflow
+    -->
 </head>
 <body>
     <!-- Header -->
@@ -31,15 +28,34 @@ https://templatemo.com/tm-595-3d-coverflow
                     <circle cx="50" cy="50" r="45" fill="none" stroke="url(#grad1)" stroke-width="2" opacity="0.5" />
                 </svg>
             </div>
-            <div class="logo-text">3D Coverflow</div>
+            <div class="logo-text">Nordic Nature</div>
         </a>
         
         <nav class="main-menu" id="mainMenu">
-            <a href="#home" class="menu-item active">Home</a>
-            <a href="#about" class="menu-item">About</a>
-            <a href="#contact" class="menu-item">Contact</a>
+            <a href="#home" class="menu-item active">Anasayfa</a>
+            <a href="#shop" class="menu-item">Mağaza</a>
+            <a href="#about" class="menu-item">Hakkımızda</a>
+            <a href="#contact" class="menu-item">İletişim</a>
+            <a id="myOrdersLink" href="#myorders" class="menu-item" style="display:none;">Siparişlerim</a>
+            <a id="adminLink" href="admin.html" class="menu-item" style="display:none;">Admin</a>
             <a href="https://github.com" target="_blank" rel="noopener noreferrer" class="menu-item external">GitHub</a>
         </nav>
+
+        <div class="auth-actions">
+            <button id="loginBtn" class="btn">Giriş</button>
+            <button id="signupBtn" class="btn">Kayıt Ol</button>
+            <div id="userBadge" class="user-badge" style="display:none;">
+                <span id="userNameText"></span>
+                <button id="logoutBtn" class="btn">Çıkış</button>
+            </div>
+        </div>
+
+        <button class="cart-button" id="openCartBtn" aria-label="Sepeti Aç/Kapat">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path fill="currentColor" d="M7 18c-1.1 0-1.99.9-1.99 2S5.9 22 7 22s2-.9 2-2-.9-2-2-2zm0-2h11c.82 0 1.54-.5 1.84-1.22l3.1-7.23A1 1 0 0022 6H6.21l-.94-2H1v2h3l3.6 7.59-1.35 2.44C5.52 16.37 6.2 18 7.66 18H20v-2H7zM17 18c-1.1 0-1.99.9-1.99 2S15.9 22 17 22s2-.9 2-2-.9-2-2-2z"/>
+            </svg>
+            <span class="cart-count" id="cartCount">0</span>
+        </button>
         
         <div class="menu-toggle" id="menuToggle">
             <span></span>
@@ -116,12 +132,41 @@ https://templatemo.com/tm-595-3d-coverflow
         </div>
     </section>
 
+    <!-- Shop Section -->
+    <section id="shop" class="section">
+        <div class="shop-content">
+            <div class="shop-header">
+                <h2>Mağaza</h2>
+                <p>Doğadan ilham alan yüksek kaliteli baskılar. Evinize huzur ve estetik katın.</p>
+            </div>
+
+            <div class="shop-toolbar">
+                <div class="search-box">
+                    <input id="searchInput" type="text" placeholder="Ürün ara... (örn: gece, şelale)">
+                </div>
+                <div class="sort-box">
+                    <select id="sortSelect" aria-label="Sırala">
+                        <option value="featured">Öne çıkanlar</option>
+                        <option value="priceAsc">Fiyat (Artan)</option>
+                        <option value="priceDesc">Fiyat (Azalan)</option>
+                        <option value="nameAsc">İsim (A→Z)</option>
+                        <option value="nameDesc">İsim (Z→A)</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="product-grid" id="productGrid">
+                <!-- JS ile doldurulacak -->
+            </div>
+        </div>
+    </section>
+
     <!-- About Section -->
     <section id="about" class="section">
         <div class="about-content">
             <div class="about-header">
-                <h2>Discover 3D Coverflow</h2>
-                <p>A revolutionary way to showcase your visual content with stunning 3D effects and seamless interactions</p>
+                <h2>Hakkımızda</h2>
+                <p>Doğanın eşsiz güzelliklerini yüksek çözünürlüklü duvar baskıları ve posterlere taşıyoruz.</p>
             </div>
             
             <div class="about-main">
@@ -140,8 +185,8 @@ https://templatemo.com/tm-595-3d-coverflow
                                 </svg>
                             </div>
                             
-                            <h3 class="showcase-title">3D Coverflow</h3>
-                            <p class="showcase-subtitle">Transform your image galleries into immersive 3D experiences</p>
+                            <h3 class="showcase-title">Nordic Nature</h3>
+                            <p class="showcase-subtitle">3D etkileşimli vitrin ve modern e‑ticaret deneyimi</p>
                             
                             <div class="showcase-badges">
                                 <a href="https://developer.mozilla.org/en-US/docs/Web/HTML" target="_blank" rel="noopener noreferrer" class="badge">HTML5</a>
@@ -154,20 +199,20 @@ https://templatemo.com/tm-595-3d-coverflow
                 </div>
                 
                 <div class="about-info">
-                    <h3>Elevate Your Gallery Experience</h3>
-                    <p>3D Coverflow is brought to you by TemplateMo. Transform the way you present images with our cutting-edge 3D coverflow technology. Create immersive, interactive galleries that captivate your audience and leave a lasting impression.</p>
-                    <p>Whether you're showcasing portfolio pieces, product images, or creating an interactive story, our 3D coverflow brings your content to life with fluid animations and intuitive controls.</p>
+                    <h3>Kalite ve Deneyim</h3>
+                    <p>Arşiv sınıfı mürekkep ve 300gsm mat kağıt üzerine baskı yapıyoruz. Ürünlerimiz, uzun yıllar boyunca ilk günkü canlılığını koruyacak şekilde üretilir.</p>
+                    <p>Her baskı; ambalaj, kargo ve iade süreçlerinde özenle yönetilir.</p>
                     
                     <ul class="feature-list">
-                        <li>Smooth 3D transitions with hardware acceleration</li>
-                        <li>Touch-enabled navigation for mobile devices</li>
-                        <li>Customizable autoplay and timing controls</li>
-                        <li>Keyboard navigation support</li>
-                        <li>Reflection effects for added depth</li>
+                        <li>Yüksek çözünürlüklü baskı</li>
+                        <li>Asitsiz arşiv kağıdı</li>
+                        <li>Çerçeve seçenekleri</li>
+                        <li>Hızlı ve güvenli teslimat</li>
+                        <li>14 gün içinde koşulsuz iade</li>
                     </ul>
                     
-                    <a href="#contact" class="cta-button">
-                        Start Your Project
+                    <a href="#shop" class="cta-button">
+                        Alışverişe Başla
                         <svg viewBox="0 0 24 24" fill="currentColor">
                             <path d="M5 12h14m-7-7l7 7-7 7" stroke="currentColor" stroke-width="2" fill="none"/>
                         </svg>
@@ -177,20 +222,20 @@ https://templatemo.com/tm-595-3d-coverflow
             
             <div class="stats-section">
                 <div class="stat-item">
-                    <div class="stat-number">60fps</div>
-                    <div class="stat-label">Smooth Performance</div>
+                    <div class="stat-number">4.9★</div>
+                    <div class="stat-label">Müşteri Memnuniyeti</div>
                 </div>
                 <div class="stat-item">
-                    <div class="stat-number">100%</div>
-                    <div class="stat-label">Responsive Design</div>
+                    <div class="stat-number">48h</div>
+                    <div class="stat-label">Hızlı Üretim</div>
                 </div>
                 <div class="stat-item">
-                    <div class="stat-number">3D</div>
-                    <div class="stat-label">Visual Effects</div>
+                    <div class="stat-number">Eco</div>
+                    <div class="stat-label">Sürdürülebilir</div>
                 </div>
                 <div class="stat-item">
-                    <div class="stat-number">∞</div>
-                    <div class="stat-label">Customization</div>
+                    <div class="stat-number">%100</div>
+                    <div class="stat-label">Mobil Uyum</div>
                 </div>
             </div>
         </div>
@@ -200,14 +245,14 @@ https://templatemo.com/tm-595-3d-coverflow
     <section id="contact" class="section">
         <div class="contact-content">
             <div class="contact-header">
-                <h2>Get In Touch</h2>
-                <p>Have a project in mind? Let's create something amazing together.</p>
+                <h2>İletişim</h2>
+                <p>Projeniz veya siparişiniz için bize ulaşın. Yardımcı olmaktan memnuniyet duyarız.</p>
             </div>
             
             <div class="contact-container">
                 <div class="contact-info-section">
-                    <h3>Let's Connect</h3>
-                    <p>We're here to help bring your vision to life. Whether you need a stunning gallery, a complete website redesign, or custom development work, we'd love to hear from you.</p>
+                    <h3>Bağlantıda Kalalım</h3>
+                    <p>Kurumsal çözümler, toptan sipariş veya kişiselleştirilmiş proje talepleriniz için yazabilirsiniz.</p>
                     
                     <div class="contact-details">
                         <div class="contact-item">
@@ -217,8 +262,8 @@ https://templatemo.com/tm-595-3d-coverflow
                                 </svg>
                             </div>
                             <div class="contact-text">
-                                <h4>Email</h4>
-                                <p>hello@3dcoverflow.com</p>
+                                <h4>E‑posta</h4>
+                                <p>destek@nordicnature.co</p>
                             </div>
                         </div>
                         
@@ -229,8 +274,8 @@ https://templatemo.com/tm-595-3d-coverflow
                                 </svg>
                             </div>
                             <div class="contact-text">
-                                <h4>Phone</h4>
-                                <p>+1 (555) 123-4567</p>
+                                <h4>Telefon</h4>
+                                <p>+90 (555) 000 00 00</p>
                             </div>
                         </div>
                         
@@ -241,8 +286,8 @@ https://templatemo.com/tm-595-3d-coverflow
                                 </svg>
                             </div>
                             <div class="contact-text">
-                                <h4>Address</h4>
-                                <p>123 Design Street, San Francisco, CA 94102</p>
+                                <h4>Adres</h4>
+                                <p>İstanbul, Türkiye</p>
                             </div>
                         </div>
                         
@@ -253,14 +298,14 @@ https://templatemo.com/tm-595-3d-coverflow
                                 </svg>
                             </div>
                             <div class="contact-text">
-                                <h4>Business Hours</h4>
-                                <p>Monday - Friday: 9:00 AM - 6:00 PM PST</p>
+                                <h4>Çalışma Saatleri</h4>
+                                <p>Pzt - Cum: 09:00 - 18:00</p>
                             </div>
                         </div>
                     </div>
                     
                     <div class="social-links">
-                        <h4>Follow Us</h4>
+                        <h4>Bizi Takip Edin</h4>
                         <div class="social-buttons">
                             <a href="#" class="social-btn" title="Facebook">
                                 <svg viewBox="0 0 24 24">
@@ -289,25 +334,107 @@ https://templatemo.com/tm-595-3d-coverflow
                 <div class="contact-form-section">
                     <form class="contact-form" onsubmit="handleSubmit(event)">
                         <div class="form-group">
-                            <label for="name">Your Name</label>
+                            <label for="name">Adınız</label>
                             <input type="text" id="name" name="name" required>
                         </div>
                         <div class="form-group">
-                            <label for="email">Email Address</label>
+                            <label for="email">E‑posta</label>
                             <input type="email" id="email" name="email" required>
                         </div>
                         <div class="form-group">
-                            <label for="subject">Subject</label>
+                            <label for="subject">Konu</label>
                             <input type="text" id="subject" name="subject" required>
                         </div>
                         <div class="form-group">
-                            <label for="message">Message</label>
+                            <label for="message">Mesajınız</label>
                             <textarea id="message" name="message" required></textarea>
                         </div>
-                        <button type="submit" class="submit-btn">Send Message</button>
+                        <button type="submit" class="submit-btn">Gönder</button>
                     </form>
                 </div>
             </div>
+        </div>
+    </section>
+
+    <!-- Cart Drawer -->
+    <aside id="cartDrawer" class="cart-drawer" aria-hidden="true">
+        <div class="cart-header">
+            <h3>Sepetim</h3>
+            <button id="closeCartBtn" class="icon-btn" aria-label="Kapat">×</button>
+        </div>
+        <div id="cartItems" class="cart-items">
+            <!-- JS ile doldurulur -->
+        </div>
+        <div class="cart-footer">
+            <div class="totals">
+                <div class="row"><span>Ara Toplam</span><span id="subtotalText">₺0,00</span></div>
+                <div class="row"><span>Kargo</span><span id="shippingText">₺0,00</span></div>
+                <div class="row grand"><span>Toplam</span><span id="totalText">₺0,00</span></div>
+            </div>
+            <a href="#checkout" id="goCheckout" class="cta-button full">Ödeme Adımına Geç</a>
+        </div>
+    </aside>
+    <div id="cartBackdrop" class="cart-backdrop" aria-hidden="true"></div>
+
+    <!-- Checkout (inline simple demo) -->
+    <section id="checkout" class="section">
+        <div class="checkout-content">
+            <div class="shop-header">
+                <h2>Ödeme</h2>
+                <p>Bilgilerinizi doldurun, siparişinizi onaylayın.</p>
+            </div>
+            <div class="checkout-grid">
+                <form id="checkoutForm" class="card">
+                    <div class="form-group">
+                        <label>Ad Soyad</label>
+                        <input type="text" required>
+                    </div>
+                    <div class="form-group">
+                        <label>E‑posta</label>
+                        <input type="email" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Adres</label>
+                        <input type="text" required>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Şehir</label>
+                            <input type="text" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Posta Kodu</label>
+                            <input type="text" required>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>Kart Numarası (Demo)</label>
+                        <input type="text" placeholder="4242 4242 4242 4242">
+                    </div>
+                    <button type="submit" class="submit-btn">Siparişi Onayla</button>
+                </form>
+
+                <div class="card order-summary">
+                    <h4>Sipariş Özeti</h4>
+                    <div id="summaryItems" class="summary-items"></div>
+                    <div class="summary-totals">
+                        <div class="row"><span>Ara Toplam</span><span id="summarySubtotal">₺0,00</span></div>
+                        <div class="row"><span>Kargo</span><span id="summaryShipping">₺0,00</span></div>
+                        <div class="row grand"><span>Toplam</span><span id="summaryTotal">₺0,00</span></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- My Orders -->
+    <section id="myorders" class="section">
+        <div class="shop-content">
+            <div class="shop-header">
+                <h2>Siparişlerim</h2>
+                <p>Son siparişlerinizi görüntüleyin.</p>
+            </div>
+            <div id="myOrdersList" class="admin-table"></div>
         </div>
     </section>
 
@@ -315,11 +442,11 @@ https://templatemo.com/tm-595-3d-coverflow
     <footer class="footer">
         <div class="footer-content">
             <div class="footer-copyright">
-                © 2025 3D Coverflow. All rights reserved. | Designed by <a href="https://templatemo.com" target="_blank" rel="noopener noreferrer">TemplateMo</a>
+                © 2025 Nordic Nature. Tüm hakları saklıdır. | Tasarım: <a href="https://templatemo.com" target="_blank" rel="noopener noreferrer">TemplateMo</a>
             </div>
             <div class="footer-links">
-                <a href="#privacy" onclick="event.preventDefault(); alert('Privacy Policy page would go here');">Privacy Policy</a>
-                <a href="#terms" onclick="event.preventDefault(); alert('Terms of Service page would go here');">Terms of Service</a>
+                <a href="#privacy" onclick="event.preventDefault(); alert('Gizlilik Politikası burada yer alacak');">Gizlilik</a>
+                <a href="#terms" onclick="event.preventDefault(); alert('Kullanım Şartları burada yer alacak');">Şartlar</a>
             </div>
         </div>
     </footer>
@@ -329,7 +456,72 @@ https://templatemo.com/tm-595-3d-coverflow
         <span>↑</span>
     </div>
 
-<script src="templatemo-3d-coverflow-scripts.js"></script>
+<!-- Auth Modals -->
+<div id="loginModal" class="modal-backdrop" aria-hidden="true">
+    <div class="modal-card">
+        <h3>Giriş Yap</h3>
+        <div class="form-group">
+            <label>E‑posta</label>
+            <input id="loginEmail" type="email" required>
+        </div>
+        <div class="form-group">
+            <label>Şifre</label>
+            <input id="loginPassword" type="password" required>
+        </div>
+        <div class="modal-actions">
+            <button id="loginCancel" class="btn">İptal</button>
+            <button id="loginSubmit" class="btn primary">Giriş</button>
+        </div>
+    </div>
+</div>
 
+<div id="signupModal" class="modal-backdrop" aria-hidden="true">
+    <div class="modal-card">
+        <h3>Kayıt Ol</h3>
+        <div class="form-group">
+            <label>Ad Soyad</label>
+            <input id="signupName" type="text" required>
+        </div>
+        <div class="form-group">
+            <label>E‑posta</label>
+            <input id="signupEmail" type="email" required>
+        </div>
+        <div class="form-group">
+            <label>Şifre</label>
+            <input id="signupPassword" type="password" required>
+        </div>
+        <div class="modal-actions">
+            <button id="signupCancel" class="btn">İptal</button>
+            <button id="signupSubmit" class="btn primary">Kayıt Ol</button>
+        </div>
+    </div>
+</div>
+
+<!-- Payment Modal (PAYTR iframe) -->
+<div id="paymentModal" class="modal-backdrop" aria-hidden="true">
+  <div class="modal-card">
+    <div style="display:flex;justify-content:space-between;align-items:center;">
+      <h3>Ödeme</h3>
+      <button id="paymentClose" class="btn">Kapat</button>
+    </div>
+    <div id="paymentContainer" style="margin-top:10px;">
+      <!-- PAYTR iframe yerleştirilecek -->
+    </div>
+    <p style="margin-top:8px;opacity:0.8;">Ödeme tamamlandığında siparişiniz onaylanacaktır.</p>
+  </div>
+</div>
+
+<!-- My Order Details Modal -->
+<div id="myOrderModal" class="modal-backdrop" aria-hidden="true">
+  <div class="modal-card">
+    <div style="display:flex;justify-content:space-between;align-items:center;">
+      <h3>Sipariş Detayı</h3>
+      <button id="myOrderModalClose" class="btn">Kapat</button>
+    </div>
+    <div id="myOrderModalBody"></div>
+  </div>
+</div>
+
+<script src="templatemo-3d-coverflow-scripts.js"></script>
 </body>
 </html>

@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin Paneli — Nordic Nature</title>
+  <link href="templatemo-3d-coverflow.css" rel="stylesheet">
+  <link href="admin.css" rel="stylesheet">
+</head>
+<body>
+  <header class="header">
+    <a href="index.html" class="logo-container">
+      <div class="logo-text">Nordic Nature</div>
+    </a>
+    <nav class="main-menu">
+      <a href="index.html#shop" class="menu-item">Mağazaya Dön</a>
+    </nav>
+  </header>
+
+  <main class="admin-main">
+    <section class="admin-card">
+      <h2>Güvenlik</h2>
+      <p id="adminGuardText">Bu sayfa sadece admin yetkisine sahip kullanıcılar için görünür.</p>
+      <button id="goLogin" class="btn">Giriş Yap</button>
+    </section>
+
+    <section id="panel" class="admin-grid" style="display:none;">
+      <div class="admin-card">
+        <h3>Site Ayarları</h3>
+        <div class="form-group">
+          <label>Site Başlığı</label>
+          <input id="siteTitleInput" type="text" placeholder="Nordic Nature">
+        </div>
+        <div class="form-group">
+          <label>Vitrin Başlığı</label>
+          <input id="heroTitleInput" type="text" placeholder="Mountain Landscape">
+        </div>
+        <div class="form-group">
+          <label>Vitrin Açıklaması</label>
+          <input id="heroDescInput" type="text" placeholder="Majestic peaks...">
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>PAYTR Test Modu (0/1)</label>
+            <input id="paytrTestMode" type="number" min="0" max="1" placeholder="1">
+          </div>
+          <div class="form-group">
+            <label>PAYTR Callback URL</label>
+            <input id="paytrCallbackUrl" type="text" placeholder="http://localhost:3000/api/paytr/callback">
+          </div>
+        </div>
+        <button id="saveSettings" class="btn primary">Ayarları Kaydet</button>
+      </div>
+
+      <div class="admin-card">
+        <h3>Ürünler</h3>
+        <div class="form-row">
+          <div class="form-group">
+            <label>ID</label>
+            <input id="pId" type="text" placeholder="benzersiz-id">
+          </div>
+          <div class="form-group">
+            <label>İsim</label>
+            <input id="pName" type="text" placeholder="Ürün adı">
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Görsel URL</label>
+            <input id="pImage" type="text" placeholder="images/mountain-landscape.jpg">
+          </div>
+          <div class="form-group">
+            <label>Fiyat (₺)</label>
+            <input id="pPrice" type="number" step="0.01" placeholder="799.90">
+          </div>
+        </div>
+        <div class="form-actions">
+          <button id="addProduct" class="btn primary">Ekle/Güncelle</button>
+          <button id="clearForm" class="btn">Temizle</button>
+        </div>
+
+        <div id="productList" class="admin-table"></div>
+      </div>
+
+      <div class="admin-card">
+        <h3>Kullanıcılar</h3>
+        <div id="userList" class="admin-table"></div>
+      </div>
+
+      <div class="admin-card">
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+          <h3>Siparişler</h3>
+          <button id="refreshOrders" class="btn">Yenile</button>
+        </div>
+        <div id="ordersList" class="admin-table"></div>
+      </div>
+    </section>
+  </main>
+
+  <!-- Order Details Modal -->
+  <div id="orderModal" class="modal-backdrop" aria-hidden="true">
+    <div class="modal-card">
+      <div style="display:flex;justify-content:space-between;align-items:center;">
+        <h3>Sipariş Detayı</h3>
+        <button id="orderModalClose" class="btn">Kapat</button>
+      </div>
+      <div id="orderModalBody"></div>
+    </div>
+  </div>
+
+  <script src="admin.js"></script>
+</body>
+</html>
