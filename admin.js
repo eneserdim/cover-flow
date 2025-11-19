@@ -371,7 +371,8 @@
       body.innerHTML = `
         <div style="display:flex;justify-content:space-between;align-items:center;">
           <div><strong>#${o.id}</strong> • ${created} • Durum: ${o.status}</div>
-          <div>
+          <div style="display:flex;gap:8px;align-items:center;">
+            <input id="refundAmount" type="number" step="0.01" min="0.01" placeholder="İade Tutarı (₺)" style="width:160px;" ${refundDisabled ? 'disabled':''} value="${Number(o.total).toFixed(2)}" />
             <button class="btn" id="refundBtn" ${refundDisabled ? 'disabled':''} data-id="${o.id}">İade Et</button>
           </div>
         </div>
@@ -399,18 +400,22 @@
       m.setAttribute('aria-hidden','false');
 
       document.getElementById('refundBtn')?.addEventListener('click', async () => {
-        const ok = await apiFetch(`/orders/${id}/refund`, { method: 'POST' });
+        const amt = Number(document.getElementById('refundAmount')?.value || 0);
+        const ok = await apiFetch(`/orders/${id}/refund`, { method: 'POST', body: JSON.stringify({ amount: amt }) });
         if (!ok) return alert('İade başarısız.');
-        alert('Sipariş iade edildi.');
+        alert('İade işlemi başarıyla gönderildi.');
         await renderOrders();
         m.classList.remove('visible');
         m.setAttribute('aria-hidden','true');
       });
     }
     else if (action === 'refund'){
-      const ok = await apiFetch(`/orders/${id}/refund`, { method: 'POST' });
+      const def = Number(btn.closest('.order-row')?.querySelector('select.status-select') ? '0' : '0');
+      const input = prompt('İade tutarı (₺)', '');
+      const amt = Number(input || 0);
+      const ok = await apiFetch(`/orders/${id}/refund`, { method: 'POST', body: JSON.stringify({ amount: amt }) });
       if (!ok) return alert('İade başarısız.');
-      alert('Sipariş iade edildi.');
+      alert('İade işlemi başarıyla gönderildi.');
       await renderOrders();
     }
   });

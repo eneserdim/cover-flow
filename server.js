@@ -148,6 +148,7 @@ function adminOnly(req, res, next) {
 }
 
 // Email (nodemailer)
+const nodemailer = require('nodemailer');
 const SMTP_HOST = process.env.SMTP_HOST || '';
 const SMTP_PORT = Number(process.env.SMTP_PORT || 587);
 const SMTP_USER = process.env.SMTP_USER || '';
@@ -212,6 +213,34 @@ ${order.city} ${order.postal_code}
       to: ADMIN_EMAIL,
       subject: `Yeni Sipariş — #${order.id}`,
       text: adminText
+    });
+  }
+}
+
+async function sendRefundEmail(order, amount) {
+  if (!transporter) return;
+  const text =
+`İade Bildirimi — #${order.id}
+Merhaba ${order.name},
+
+Siparişiniz için ₺${amount.toFixed(2)} tutarında iade işlemi gerçekleştirilmiştir.
+
+İyi günler,
+Nordic Nature`;
+
+  await transporter.sendMail({
+    from: SMTP_FROM,
+    to: order.email,
+    subject: `İade İşlemi — #${order.id}`,
+    text
+  });
+
+  if (ADMIN_EMAIL) {
+    await transporter.sendMail({
+      from: SMTP_FROM,
+      to: ADMIN_EMAIL,
+      subject: `İade İşlemi — #${order.id}`,
+      text: `Sipariş #${order.id} için ₺${amount.toFixed(2)} iade edildi. Müşteri: ${order.name} <${order.email}>`
     });
   }
 }
@@ -432,13 +461,14 @@ app.post('/api/orders', authMiddleware, async (req, res) => {
   }
 });
 
-// Refund (Admin) — PAYTR Refund API (full refund)
+// Refund (Admin) — PAYTR Refund API (supports partial refund)
 app.post('/api/orders/:id/refund', authMiddleware, adminOnly, async (req, res) => {
   try {
     const { id } = req.params;
+    const amountReq = req.body?.amount;
 
     // load order and check status
-    const r = await pool.query(`SELECT id, status, total FROM orders WHERE id=$1`, [id]);
+    const r = await pool.query(`SELECT id, status, total, email, name FROM orders WHERE id=$1`, [id]);
     if (r.rows.length === 0) return res.status(404).json({ error: 'Not found' });
     const order = r.rows[0];
     if (order.status !== 'paid') return res.status(400).json({ error: 'Only paid orders can be refunded' });
@@ -451,8 +481,11 @@ app.post('/api/orders/:id/refund', authMiddleware, adminOnly, async (req, res) =
       return res.status(400).json({ error: 'PAYTR credentials not configured' });
     }
 
-    // compute return_amount as full order total (string with dot)
-    const return_amount = Number(order.total).toFixed(2); // e.g. "123.45"
+    // compute return_amount (string with dot)
+    let amount = Number(amountReq || order.total);
+    if (!Number.isFinite(amount) || amount <= 0) return res.status(400).json({ error: 'Invalid amount' });
+    if (amount > Number(order.total)) amount = Number(order.total);
+    const return_amount = amount.toFixed(2); // e.g. "123.45"
 
     // Token: base64(hmac_sha256(merchant_id + merchant_oid + return_amount + merchant_salt, merchant_key))
     const crypto = require('crypto');
@@ -484,7 +517,12 @@ app.post('/api/orders/:id/refund', authMiddleware, adminOnly, async (req, res) =
     });
 
     if (data && data.status === 'success') {
-      await pool.query(`UPDATE orders SET status='refunded' WHERE id=$1`, [id]);
+      // Full iade ise statüyü refunded'e çekelim. (Kısmi iade ise statüyü paid bırakmak tercih edilir.)
+      if (Number(return_amount) >= Number(order.total)) {
+        await pool.query(`UPDATE orders SET status='refunded' WHERE id=$1`, [id]);
+      }
+      // E-posta bildirimi
+      sendRefundEmail(order, Number(return_amount)).catch(() => {});
       return res.json({ ok: true, reference_no: data.reference_no || null });
     } else {
       return res.status(400).json({ error: data?.err_msg || 'PAYTR refund error' });
