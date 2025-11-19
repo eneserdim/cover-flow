@@ -540,25 +540,59 @@ app.post('/api/paytr/init', authMiddleware, async (req, res) => {
 // PAYTR callback (server-to-server)
 app.post('/api/paytr/callback', express.urlencoded({ extended: true }), async (req, res) => {
   try {
-    // Basic skeleton: validate and update order status
-    const { merchant_oid, status } = req.body;
-    if (!merchant_oid) {
-      return res.status(400).send('missing merchant_oid');
-    }
+    const MERCHANT_KEY = process.env.PAYTR_MERCHANT_KEY || '';
+    const MERCHANT_SALT = process.env.PAYTR_MERCHANT_SALT || '';
+    const { merchant_oid, status, total_amount, hash } = req.body || {};
+    if (!merchant_oid) return res.status(400).send('missing merchant_oid');
+
     // merchant_oid olarak orderId kullandığımızı varsayalım
     const orderId = parseInt(merchant_oid, 10);
     if (!orderId) return res.status(400).send('invalid oid');
 
+    // Hash doğrulaması (PAYTR dokümantasyonuna göre)
+    // Varsayılan formül: base64(hmac_sha256(merchant_oid + merchant_salt + status + total_amount, merchant_key))
+    if (MERCHANT_KEY && MERCHANT_SALT) {
+      const crypto = require('crypto');
+      const verifyStr = String(merchant_oid) + String(MERCHANT_SALT) + String(status) + String(total_amount || '');
+      const computed = Buffer.from(
+        crypto.createHmac('sha256', MERCHANT_KEY)
+          .update(verifyStr, 'utf8')
+          .digest()
+      ).toString('base64');
+
+      if (!hash || hash !== computed) {
+        // Hash uyuşmazlığı
+        return res.status(401).send('invalid hash');
+      }
+    }
+
     if (status === 'success') {
       await pool.query(`UPDATE orders SET status='paid' WHERE id=$1`, [orderId]);
-      res.status(200).send('OK');
+      return res.status(200).send('OK');
     } else {
       await pool.query(`UPDATE orders SET status='cancelled' WHERE id=$1`, [orderId]);
-      res.status(200).send('OK');
+      return res.status(200).send('OK');
     }
   } catch (e) {
     console.error(e);
-    res.status(500).send('error');
+    return res.status(500).send('error');
+  }
+});
+
+// Order status (for frontend polling)
+app.get('/api/orders/:id/status', authMiddleware, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const r = await pool.query(`SELECT id, user_id, status FROM orders WHERE id = $1`, [id]);
+    if (r.rows.length === 0) return res.status(404).json({ error: 'Not found' });
+    const row = r.rows[0];
+    if (row.user_id !== req.user.id && req.user.role !== 'admin') {
+      return res.status(403).json({ error: 'Forbidden' });
+    }
+    res.json({ status: row.status });
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ error: 'Server error' });
   }
 });
 

@@ -660,6 +660,41 @@ https://templatemo.com/tm-595-3d-coverflow
                     c.innerHTML = `<iframe src="https://www.paytr.com/odeme/guvenli/${paytr.token}" frameborder="0" scrolling="auto" style="width:100%;height:600px;"></iframe>`;
                     m.classList.add('visible');
                     m.setAttribute('aria-hidden','false');
+
+                    // Poll order status until paid/cancelled or timeout
+                    let elapsed = 0;
+                    const pollIntervalMs = 2000;
+                    const timeoutMs = 5 * 60 * 1000; // 5 dakika
+                    const pollTimer = setInterval(async () => {
+                        elapsed += pollIntervalMs;
+                        try {
+                            const r = await fetch(`/api/orders/${data.orderId}/status`, {
+                                headers: { 'Authorization': 'Bearer ' + token }
+                            });
+                            if (r.ok) {
+                                const s = await r.json();
+                                if (s.status === 'paid') {
+                                    clearInterval(pollTimer);
+                                    m.classList.remove('visible');
+                                    m.setAttribute('aria-hidden','true');
+                                    alert(`Ödeme başarılı. Siparişiniz onaylandı.\nSipariş No: ${data.orderId}`);
+                                    cart = [];
+                                    saveCart();
+                                    updateCartCount();
+                                    renderCart();
+                                    e.target.reset();
+                                } else if (s.status === 'cancelled') {
+                                    clearInterval(pollTimer);
+                                    m.classList.remove('visible');
+                                    m.setAttribute('aria-hidden','true');
+                                    alert('Ödeme iptal edildi veya başarısız oldu.');
+                                }
+                            }
+                        } catch {}
+                        if (elapsed >= timeoutMs) {
+                            clearInterval(pollTimer);
+                        }
+                    }, pollIntervalMs);
                 } else {
                     alert(`Teşekkürler! Siparişiniz alındı.\nSipariş No: ${data.orderId}\nToplam: ${formatPrice(Number(data.total))}`);
                     cart = [];
