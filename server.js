@@ -426,6 +426,56 @@ app.post('/api/orders', authMiddleware, async (req, res) => {
   }
 });
 
+// PAYTR init (returns token if configured)
+app.post('/api/paytr/init', authMiddleware, async (req, res) => {
+  try {
+    const { orderId } = req.body;
+    if (!orderId) return res.status(400).json({ error: 'Missing orderId' });
+
+    const credOk = process.env.PAYTR_MERCHANT_ID && process.env.PAYTR_MERCHANT_KEY && process.env.PAYTR_MERCHANT_SALT;
+    if (!credOk) {
+      return res.json({ enabled: false, reason: 'PAYTR credentials not configured' });
+    }
+
+    // Load order totals
+    const or = await pool.query(`SELECT id, email, name, total FROM orders WHERE id=$1`, [orderId]);
+    if (or.rows.length === 0) return res.status(404).json({ error: 'Order not found' });
+    const order = or.rows[0];
+
+    // Prepare minimal response instructing frontend to open iframe URL once token acquired.
+    // Implementing full token generation requires PAYTR signature specifics.
+    return res.json({ enabled: true, requiresConfiguration: true, message: 'PAYTR entegrasyonu için merchant bilgileri ve token oluşturma akışı tamamlanmalı.' });
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// PAYTR callback (server-to-server)
+app.post('/api/paytr/callback', express.urlencoded({ extended: true }), async (req, res) => {
+  try {
+    // Basic skeleton: validate and update order status
+    const { merchant_oid, status } = req.body;
+    if (!merchant_oid) {
+      return res.status(400).send('missing merchant_oid');
+    }
+    // merchant_oid olarak orderId kullandığımızı varsayalım
+    const orderId = parseInt(merchant_oid, 10);
+    if (!orderId) return res.status(400).send('invalid oid');
+
+    if (status === 'success') {
+      await pool.query(`UPDATE orders SET status='paid' WHERE id=$1`, [orderId]);
+      res.status(200).send('OK');
+    } else {
+      await pool.query(`UPDATE orders SET status='cancelled' WHERE id=$1`, [orderId]);
+      res.status(200).send('OK');
+    }
+  } catch (e) {
+    console.error(e);
+    res.status(500).send('error');
+  }
+});
+
 app.get('/api/orders/mine', authMiddleware, async (req, res) => {
   try {
     const r = await pool.query(

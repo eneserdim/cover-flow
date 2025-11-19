@@ -600,7 +600,7 @@ https://templatemo.com/tm-595-3d-coverflow
         searchInput?.addEventListener('input', () => renderProducts(getSortedFiltered()));
         sortSelect?.addEventListener('change', () => renderProducts(getSortedFiltered()));
 
-        // Checkout (create order via API)
+        // Checkout (create order via API) + PAYTR init
         checkoutForm?.addEventListener('submit', async (e) => {
             e.preventDefault();
             if (cart.length === 0) {
@@ -610,13 +610,11 @@ https://templatemo.com/tm-595-3d-coverflow
             const token = localStorage.getItem('nordic_token') || '';
             if (!token) {
                 alert('Siparişi tamamlamak için lütfen giriş yapın.');
-                // login modal varsa açalım
                 const lm = document.getElementById('loginModal');
                 if (lm) lm.classList.add('visible');
                 return;
             }
             const inputs = checkoutForm.querySelectorAll('input');
-            // Beklenen sıralama: Ad Soyad, E-posta, Adres, Şehir, Posta Kodu, Kart
             const name = (inputs[0]?.value || '').trim();
             const email = (inputs[1]?.value || '').trim().toLowerCase();
             const address = (inputs[2]?.value || '').trim();
@@ -641,15 +639,45 @@ https://templatemo.com/tm-595-3d-coverflow
                     return alert('Sipariş oluşturulamadı: ' + (err.error || res.status));
                 }
                 const data = await res.json();
-                alert(`Teşekkürler! Siparişiniz alındı.\nSipariş No: ${data.orderId}\nToplam: ${formatPrice(Number(data.total))}`);
-                cart = [];
-                saveCart();
-                updateCartCount();
-                renderCart();
-                e.target.reset();
+
+                // Try PAYTR init
+                const paytrRes = await fetch('/api/paytr/init', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': 'Bearer ' + token
+                    },
+                    body: JSON.stringify({ orderId: data.orderId })
+                });
+                let paytr = null;
+                if (paytrRes.ok) {
+                    paytr = await paytrRes.json();
+                }
+
+                if (paytr && paytr.enabled && paytr.token) {
+                    const m = document.getElementById('paymentModal');
+                    const c = document.getElementById('paymentContainer');
+                    c.innerHTML = `<iframe src="https://www.paytr.com/odeme/guvenli/${paytr.token}" frameborder="0" scrolling="auto" style="width:100%;height:600px;"></iframe>`;
+                    m.classList.add('visible');
+                    m.setAttribute('aria-hidden','false');
+                } else {
+                    alert(`Teşekkürler! Siparişiniz alındı.\nSipariş No: ${data.orderId}\nToplam: ${formatPrice(Number(data.total))}`);
+                    cart = [];
+                    saveCart();
+                    updateCartCount();
+                    renderCart();
+                    e.target.reset();
+                }
             } catch {
                 alert('Sipariş sırasında bir hata oluştu. Lütfen tekrar deneyin.');
             }
+        });
+
+        document.getElementById('paymentClose')?.addEventListener('click', () => {
+            const m = document.getElementById('paymentModal');
+            m.classList.remove('visible');
+            m.setAttribute('aria-hidden','true');
+            // Not: ödeme durumu admin panelinden görülebilir; burada sepet temizlenmez.
         });
 
         // Initialize
