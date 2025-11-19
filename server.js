@@ -432,17 +432,63 @@ app.post('/api/orders', authMiddleware, async (req, res) => {
   }
 });
 
-// Refund (Admin) — marks order as refunded (PAYTR refund integration can be added)
+// Refund (Admin) — PAYTR Refund API (full refund)
 app.post('/api/orders/:id/refund', authMiddleware, adminOnly, async (req, res) => {
   try {
     const { id } = req.params;
-    // Only allow refund if paid
-    const r = await pool.query(`SELECT status FROM orders WHERE id=$1`, [id]);
-    if (r.rows.length === 0) return res.status(404).json({ error: 'Not found' });
-    if (r.rows[0].status !== 'paid') return res.status(400).json({ error: 'Only paid orders can be refunded' });
 
-    await pool.query(`UPDATE orders SET status='refunded' WHERE id=$1`, [id]);
-    res.json({ ok: true });
+    // load order and check status
+    const r = await pool.query(`SELECT id, status, total FROM orders WHERE id=$1`, [id]);
+    if (r.rows.length === 0) return res.status(404).json({ error: 'Not found' });
+    const order = r.rows[0];
+    if (order.status !== 'paid') return res.status(400).json({ error: 'Only paid orders can be refunded' });
+
+    // credentials
+    const MERCHANT_ID = process.env.PAYTR_MERCHANT_ID;
+    const MERCHANT_KEY = process.env.PAYTR_MERCHANT_KEY;
+    const MERCHANT_SALT = process.env.PAYTR_MERCHANT_SALT;
+    if (!MERCHANT_ID || !MERCHANT_KEY || !MERCHANT_SALT) {
+      return res.status(400).json({ error: 'PAYTR credentials not configured' });
+    }
+
+    // compute return_amount as full order total (string with dot)
+    const return_amount = Number(order.total).toFixed(2); // e.g. "123.45"
+
+    // Token: base64(hmac_sha256(merchant_id + merchant_oid + return_amount + merchant_salt, merchant_key))
+    const crypto = require('crypto');
+    const token = Buffer.from(
+      crypto.createHmac('sha256', MERCHANT_KEY)
+        .update(String(MERCHANT_ID) + String(id) + String(return_amount) + String(MERCHANT_SALT), 'utf8')
+        .digest()
+    ).toString('base64');
+
+    const params = new URLSearchParams({
+      merchant_id: MERCHANT_ID,
+      merchant_oid: String(id),
+      return_amount,
+      paytr_token: token
+    });
+
+    const fetchMod = await import('node-fetch');
+    const fetch = fetchMod.default;
+    const refundUrl = process.env.PAYTR_REFUND_URL || 'https://www.paytr.com/odeme/iade';
+    const resp = await fetch(refundUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: params.toString()
+    });
+
+    const data = await resp.json().catch(async () => {
+      const text = await resp.text();
+      return { status: 'error', err_msg: text };
+    });
+
+    if (data && data.status === 'success') {
+      await pool.query(`UPDATE orders SET status='refunded' WHERE id=$1`, [id]);
+      return res.json({ ok: true, reference_no: data.reference_no || null });
+    } else {
+      return res.status(400).json({ error: data?.err_msg || 'PAYTR refund error' });
+    }
   } catch (e) {
     console.error(e);
     res.status(500).json({ error: 'Server error' });
