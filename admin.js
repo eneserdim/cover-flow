@@ -87,6 +87,8 @@
 
   /* Users */
   const userList = document.getElementById('userList');
+  const ordersList = document.getElementById('ordersList');
+  const refreshOrdersBtn = document.getElementById('refreshOrders');
 
   async function initPanel(api){
     if (api){
@@ -97,12 +99,14 @@
         if (heroDescInput) heroDescInput.value = s.hero_desc || 'Majestic peaks covered in snow during golden hour';
       }
       await renderProductsApi();
+      await renderOrders();
     } else {
       const s = getSettings();
       if (siteTitleInput) siteTitleInput.value = s.siteTitle || 'Nordic Nature';
       if (heroTitleInput) heroTitleInput.value = s.heroTitle || 'Mountain Landscape';
       if (heroDescInput) heroDescInput.value = s.heroDesc || 'Majestic peaks covered in snow during golden hour';
       renderProductsLocal();
+      ordersList.innerHTML = '<div>API devre dışı. Siparişler sadece API ile listelenir.</div>';
     }
     renderUsers();
   }
@@ -293,6 +297,58 @@
       await renderUsers();
       alert('Kullanıcı silindi.');
     }
+  });
+
+  async function renderOrders(){
+    const data = await apiFetch('/orders');
+    ordersList.innerHTML = '';
+    const orders = data?.orders || [];
+    if (orders.length === 0){
+      const hint = document.createElement('div');
+      hint.textContent = 'Henüz sipariş yok.';
+      ordersList.appendChild(hint);
+      return;
+    }
+    orders.forEach(o => {
+      const row = document.createElement('div');
+      row.className = 'order-row';
+      const total = Number(o.total).toFixed(2);
+      const created = new Date(o.created_at).toLocaleString('tr-TR');
+      row.innerHTML = `
+        <div>#${o.id}<br><small>${created}</small></div>
+        <div>${o.name}<br><small>${o.email}</small></div>
+        <div>Toplam: ₺${total}</div>
+        <div>
+          <select class="status-select" data-id="${o.id}">
+            ${['new','paid','shipped','cancelled'].map(s => `<option value="${s}" ${o.status===s?'selected':''}>${s}</option>`).join('')}
+          </select>
+        </div>
+        <div style="display:flex;gap:6px;">
+          <button class="btn" data-id="${o.id}" data-action="details">Detay</button>
+        </div>
+      `;
+      ordersList.appendChild(row);
+    });
+  }
+
+  refreshOrdersBtn?.addEventListener('click', renderOrders);
+
+  ordersList?.addEventListener('change', async (e) => {
+    const sel = e.target.closest('select.status-select');
+    if (!sel) return;
+    const id = sel.getAttribute('data-id');
+    const status = sel.value;
+    const ok = await apiFetch(`/orders/${id}`, { method: 'PUT', body: JSON.stringify({ status }) });
+    if (!ok) {
+      alert('Durum güncellenemedi.');
+    }
+  });
+
+  ordersList?.addEventListener('click', async (e) => {
+    const btn = e.target.closest('button[data-action="details"]');
+    if (!btn) return;
+    const id = btn.getAttribute('data-id');
+    alert('Detay ekranı bir sonraki iterasyonda eklenecek. (Sipariş ID: ' + id + ')');
   });
 
   checkAccess();

@@ -378,6 +378,24 @@ app.get('/api/orders', authMiddleware, adminOnly, async (req, res) => {
   }
 });
 
+app.put('/api/orders/:id', authMiddleware, adminOnly, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { status } = req.body;
+    if (!status) return res.status(400).json({ error: 'Missing status' });
+    await pool.query(`UPDATE orders SET status=$2 WHERE id=$1`, [id, status]);
+    res.json({ ok: true });
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
 // Fallback to index.html for SPA-like routing if needed
 app.get('*', (req, res, next) => {
   if (req.path.startsWith('/api/')) return next();
