@@ -320,21 +320,24 @@
       row.className = 'order-row';
       const total = Number(o.total).toFixed(2);
       const created = new Date(o.created_at).toLocaleString('tr-TR');
+      const refundDisabled = o.status !== 'paid' ? 'disabled' : '';
       row.innerHTML = `
         <div>#${o.id}<br><small>${created}</small></div>
         <div>${o.name}<br><small>${o.email}</small></div>
         <div>Toplam: ₺${total}</div>
         <div>
           <select class="status-select" data-id="${o.id}">
-            ${['new','paid','shipped','cancelled'].map(s => `<option value="${s}" ${o.status===s?'selected':''}>${s}</option>`).join('')}
+            ${['new','paid','shipped','cancelled','refunded'].map(s => `<option value="${s}" ${o.status===s?'selected':''}>${s}</option>`).join('')}
           </select>
         </div>
         <div style="display:flex;gap:6px;">
           <button class="btn" data-id="${o.id}" data-action="details">Detay</button>
+          <button class="btn" data-id="${o.id}" data-action="refund" ${refundDisabled}>İade Et</button>
         </div>
       `;
       ordersList.appendChild(row);
     });
+  });
   }
 
   refreshOrdersBtn?.addEventListener('click', renderOrders);
@@ -351,40 +354,65 @@
   });
 
   ordersList?.addEventListener('click', async (e) => {
-    const btn = e.target.closest('button[data-action="details"]');
+    const btn = e.target.closest('button[data-action]');
     if (!btn) return;
     const id = btn.getAttribute('data-id');
-    const data = await apiFetch(`/orders/${id}`);
-    if (!data || !data.order) return alert('Sipariş bulunamadı.');
-    const m = document.getElementById('orderModal');
-    const body = document.getElementById('orderModalBody');
-    const o = data.order;
-    const items = data.items || [];
-    const created = new Date(o.created_at).toLocaleString('tr-TR');
-    body.innerHTML = `
-      <div><strong>#${o.id}</strong> • ${created} • Durum: ${o.status}</div>
-      <div style="margin-top:8px;">
-        <div>${o.name} — ${o.email}</div>
-        <div>${o.address}, ${o.city} ${o.postal_code}</div>
-      </div>
-      <div class="order-items">
-        ${items.map(it => `
-          <div class="order-item-row">
-            <img src="${it.image}" alt="${it.name}" />
-            <div>${it.name}<br><small>${it.product_id}</small></div>
-            <div>₺${Number(it.price).toFixed(2)}</div>
-            <div>× ${it.qty}</div>
+    const action = btn.getAttribute('data-action');
+
+    if (action === 'details'){
+      const data = await apiFetch(`/orders/${id}`);
+      if (!data || !data.order) return alert('Sipariş bulunamadı.');
+      const m = document.getElementById('orderModal');
+      const body = document.getElementById('orderModalBody');
+      const o = data.order;
+      const items = data.items || [];
+      const created = new Date(o.created_at).toLocaleString('tr-TR');
+      const refundDisabled = o.status !== 'paid';
+      body.innerHTML = `
+        <div style="display:flex;justify-content:space-between;align-items:center;">
+          <div><strong>#${o.id}</strong> • ${created} • Durum: ${o.status}</div>
+          <div>
+            <button class="btn" id="refundBtn" ${refundDisabled ? 'disabled':''} data-id="${o.id}">İade Et</button>
           </div>
-        `).join('')}
-      </div>
-      <div style="margin-top:10px;display:flex;gap:10px;justify-content:flex-end;">
-        <div>Ara Toplam: ₺${Number(o.subtotal).toFixed(2)}</div>
-        <div>Kargo: ₺${Number(o.shipping).toFixed(2)}</div>
-        <div><strong>Toplam: ₺${Number(o.total).toFixed(2)}</strong></div>
-      </div>
-    `;
-    m.classList.add('visible');
-    m.setAttribute('aria-hidden','false');
+        </div>
+        <div style="margin-top:8px;">
+          <div>${o.name} — ${o.email}</div>
+          <div>${o.address}, ${o.city} ${o.postal_code}</div>
+        </div>
+        <div class="order-items">
+          ${items.map(it => `
+            <div class="order-item-row">
+              <img src="${it.image}" alt="${it.name}" />
+              <div>${it.name}<br><small>${it.product_id}</small></div>
+              <div>₺${Number(it.price).toFixed(2)}</div>
+              <div>× ${it.qty}</div>
+            </div>
+          `).join('')}
+        </div>
+        <div style="margin-top:10px;display:flex;gap:10px;justify-content:flex-end;">
+          <div>Ara Toplam: ₺${Number(o.subtotal).toFixed(2)}</div>
+          <div>Kargo: ₺${Number(o.shipping).toFixed(2)}</div>
+          <div><strong>Toplam: ₺${Number(o.total).toFixed(2)}</strong></div>
+        </div>
+      `;
+      m.classList.add('visible');
+      m.setAttribute('aria-hidden','false');
+
+      document.getElementById('refundBtn')?.addEventListener('click', async () => {
+        const ok = await apiFetch(`/orders/${id}/refund`, { method: 'POST' });
+        if (!ok) return alert('İade başarısız.');
+        alert('Sipariş iade edildi.');
+        await renderOrders();
+        m.classList.remove('visible');
+        m.setAttribute('aria-hidden','true');
+      });
+    }
+    else if (action === 'refund'){
+      const ok = await apiFetch(`/orders/${id}/refund`, { method: 'POST' });
+      if (!ok) return alert('İade başarısız.');
+      alert('Sipariş iade edildi.');
+      await renderOrders();
+    }
   });
 
   document.getElementById('orderModalClose')?.addEventListener('click', () => {

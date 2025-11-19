@@ -725,3 +725,66 @@ https://templatemo.com/tm-595-3d-coverflow
         updateCartCount();
         renderProducts(products);
         renderCart();
+
+        // My Orders (user)
+        const myOrdersLink = document.getElementById('myOrdersLink');
+        const myOrdersList = document.getElementById('myOrdersList');
+
+        function getCurrentUser(){
+            try{ const raw = localStorage.getItem('nordic_current_user'); return raw ? JSON.parse(raw) : null; }catch{ return null; }
+        }
+        function updateUserNav(){
+            const user = getCurrentUser();
+            if (user){
+                if (myOrdersLink) myOrdersLink.style.display = 'inline-block';
+            } else {
+                if (myOrdersLink) myOrdersLink.style.display = 'none';
+            }
+        }
+        updateUserNav();
+
+        async function renderMyOrders(){
+            if (!myOrdersList) return;
+            myOrdersList.innerHTML = '';
+            const token = localStorage.getItem('nordic_token') || '';
+            if (!token) {
+                const hint = document.createElement('div');
+                hint.textContent = 'Siparişlerinizi görmek için lütfen giriş yapın.';
+                myOrdersList.appendChild(hint);
+                return;
+            }
+            try{
+                const res = await fetch('/api/orders/mine', { headers: { 'Authorization': 'Bearer ' + token } });
+                if (!res.ok) throw new Error('fetch failed');
+                const data = await res.json();
+                const orders = data?.orders || [];
+                if (orders.length === 0){
+                    const hint = document.createElement('div');
+                    hint.textContent = 'Henüz siparişiniz yok.';
+                    myOrdersList.appendChild(hint);
+                    return;
+                }
+                orders.forEach(o => {
+                    const row = document.createElement('div');
+                    row.className = 'order-row';
+                    const created = new Date(o.created_at).toLocaleString('tr-TR');
+                    row.innerHTML = `
+                        <div>#${o.id}<br><small>${created}</small></div>
+                        <div>${o.name}<br><small>${o.email}</small></div>
+                        <div>Toplam: ₺${Number(o.total).toFixed(2)}</div>
+                        <div>Durum: ${o.status}</div>
+                        <div></div>
+                    `;
+                    myOrdersList.appendChild(row);
+                });
+            } catch {
+                const hint = document.createElement('div');
+                hint.textContent = 'Siparişler alınamadı.';
+                myOrdersList.appendChild(hint);
+            }
+        }
+
+        // When navigating to #myorders, render list
+        document.querySelector('a#myOrdersLink')?.addEventListener('click', () => {
+            setTimeout(renderMyOrders, 100);
+        });

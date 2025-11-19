@@ -432,6 +432,23 @@ app.post('/api/orders', authMiddleware, async (req, res) => {
   }
 });
 
+// Refund (Admin) — marks order as refunded (PAYTR refund integration can be added)
+app.post('/api/orders/:id/refund', authMiddleware, adminOnly, async (req, res) => {
+  try {
+    const { id } = req.params;
+    // Only allow refund if paid
+    const r = await pool.query(`SELECT status FROM orders WHERE id=$1`, [id]);
+    if (r.rows.length === 0) return res.status(404).json({ error: 'Not found' });
+    if (r.rows[0].status !== 'paid') return res.status(400).json({ error: 'Only paid orders can be refunded' });
+
+    await pool.query(`UPDATE orders SET status='refunded' WHERE id=$1`, [id]);
+    res.json({ ok: true });
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
 // PAYTR init (returns token if configured)
 app.post('/api/paytr/init', authMiddleware, async (req, res) => {
   try {
