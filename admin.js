@@ -348,7 +348,51 @@
     const btn = e.target.closest('button[data-action="details"]');
     if (!btn) return;
     const id = btn.getAttribute('data-id');
-    alert('Detay ekranı bir sonraki iterasyonda eklenecek. (Sipariş ID: ' + id + ')');
+    const data = await apiFetch(`/orders/${id}`);
+    if (!data || !data.order) return alert('Sipariş bulunamadı.');
+    const m = document.getElementById('orderModal');
+    const body = document.getElementById('orderModalBody');
+    const o = data.order;
+    const items = data.items || [];
+    const created = new Date(o.created_at).toLocaleString('tr-TR');
+    body.innerHTML = `
+      <div><strong>#${o.id}</strong> • ${created} • Durum: ${o.status}</div>
+      <div style="margin-top:8px;">
+        <div>${o.name} — ${o.email}</div>
+        <div>${o.address}, ${o.city} ${o.postal_code}</div>
+      </div>
+      <div class="order-items">
+        ${items.map(it => `
+          <div class="order-item-row">
+            <img src="${it.image}" alt="${it.name}" />
+            <div>${it.name}<br><small>${it.product_id}</small></div>
+            <div>₺${Number(it.price).toFixed(2)}</div>
+            <div>× ${it.qty}</div>
+          </div>
+        `).join('')}
+      </div>
+      <div style="margin-top:10px;display:flex;gap:10px;justify-content:flex-end;">
+        <div>Ara Toplam: ₺${Number(o.subtotal).toFixed(2)}</div>
+        <div>Kargo: ₺${Number(o.shipping).toFixed(2)}</div>
+        <div><strong>Toplam: ₺${Number(o.total).toFixed(2)}</strong></div>
+      </div>
+    `;
+    m.classList.add('visible');
+    m.setAttribute('aria-hidden','false');
+  });
+
+  document.getElementById('orderModalClose')?.addEventListener('click', () => {
+    const m = document.getElementById('orderModal');
+    m.classList.remove('visible');
+    m.setAttribute('aria-hidden','true');
+  });
+
+  document.getElementById('orderModal')?.addEventListener('click', (e) => {
+    if (e.target.id === 'orderModal'){
+      const m = document.getElementById('orderModal');
+      m.classList.remove('visible');
+      m.setAttribute('aria-hidden','true');
+    }
   });
 
   checkAccess();

@@ -378,6 +378,26 @@ app.get('/api/orders', authMiddleware, adminOnly, async (req, res) => {
   }
 });
 
+app.get('/api/orders/:id', authMiddleware, adminOnly, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const or = await pool.query(
+      `SELECT id, email, name, address, city, postal_code, subtotal, shipping, total, status, created_at
+       FROM orders WHERE id = $1`,
+      [id]
+    );
+    if (or.rows.length === 0) return res.status(404).json({ error: 'Not found' });
+    const items = await pool.query(
+      `SELECT product_id, name, image, price, qty FROM order_items WHERE order_id = $1`,
+      [id]
+    );
+    res.json({ order: or.rows[0], items: items.rows });
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
 app.put('/api/orders/:id', authMiddleware, adminOnly, async (req, res) => {
   try {
     const { id } = req.params;
@@ -385,6 +405,11 @@ app.put('/api/orders/:id', authMiddleware, adminOnly, async (req, res) => {
     if (!status) return res.status(400).json({ error: 'Missing status' });
     await pool.query(`UPDATE orders SET status=$2 WHERE id=$1`, [id, status]);
     res.json({ ok: true });
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
   } catch (e) {
     console.error(e);
     res.status(500).json({ error: 'Server error' });
