@@ -361,14 +361,15 @@
 
     if (action === 'details'){
       const data = await apiFetch(`/orders/${id}`);
-      if (!data || !data.order) return alert('Sipariş bulunamadı.');
-      const m = document.getElementById('orderModal');
-      const body = document.getElementById('orderModalBody');
-      const o = data.order;
-      const items = data.items || [];
-      const created = new Date(o.created_at).toLocaleString('tr-TR');
-      const refundDisabled = o.status !== 'paid';
-      body.innerHTML = `
+    if (!data || !data.order) return alert('Sipariş bulunamadı.');
+    const m = document.getElementById('orderModal');
+    const body = document.getElementById('orderModalBody');
+    const o = data.order;
+    const items = data.items || [];
+    const refunds = data.refunds || [];
+    const created = new Date(o.created_at).toLocaleString('tr-TR');
+    const refundDisabled = o.status !== 'paid';
+    body.innerHTML = `
         <div style="display:flex;justify-content:space-between;align-items:center;">
           <div><strong>#${o.id}</strong> • ${created} • Durum: ${o.status}</div>
           <div style="display:flex;gap:8px;align-items:center;">
@@ -394,6 +395,14 @@
           <div>Ara Toplam: ₺${Number(o.subtotal).toFixed(2)}</div>
           <div>Kargo: ₺${Number(o.shipping).toFixed(2)}</div>
           <div><strong>Toplam: ₺${Number(o.total).toFixed(2)}</strong></div>
+        </div>
+        <div style="margin-top:14px;">
+          <h4>İade Geçmişi</h4>
+          ${
+            refunds.length
+              ? refunds.map(r => `<div>- ₺${Number(r.amount).toFixed(2)} • ${new Date(r.created_at).toLocaleString('tr-TR')} ${r.reference_no ? `(Ref: ${r.reference_no})` : ''}</div>`).join('')
+              : '<div>İade kaydı yok.</div>'
+          }
         </div>
       `;
       m.classList.add('visible');

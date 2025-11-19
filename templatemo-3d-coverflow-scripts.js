@@ -773,7 +773,9 @@ https://templatemo.com/tm-595-3d-coverflow
                         <div>${o.name}<br><small>${o.email}</small></div>
                         <div>Toplam: ₺${Number(o.total).toFixed(2)}</div>
                         <div>Durum: ${o.status}</div>
-                        <div></div>
+                        <div style="display:flex;gap:6px;">
+                          <button class="btn" data-id="${o.id}" data-action="details">Detay</button>
+                        </div>
                     `;
                     myOrdersList.appendChild(row);
                 });
@@ -783,6 +785,73 @@ https://templatemo.com/tm-595-3d-coverflow
                 myOrdersList.appendChild(hint);
             }
         }
+
+        // My order details modal
+        myOrdersList?.addEventListener('click', async (e) => {
+            const btn = e.target.closest('button[data-action="details"]');
+            if (!btn) return;
+            const id = btn.getAttribute('data-id');
+            const token = localStorage.getItem('nordic_token') || '';
+            try {
+                const r = await fetch(`/api/orders/${id}/owner`, { headers: { 'Authorization': 'Bearer ' + token } });
+                if (!r.ok) return alert('Sipariş detayları alınamadı.');
+                const data = await r.json();
+                const o = data.order;
+                const items = data.items || [];
+                const refunds = data.refunds || [];
+                const created = new Date(o.created_at).toLocaleString('tr-TR');
+                const body = document.getElementById('myOrderModalBody');
+                body.innerHTML = `
+                    <div><strong>#${o.id}</strong> • ${created} • Durum: ${o.status}</div>
+                    <div style="margin-top:8px;">
+                      <div>${o.name} — ${o.email}</div>
+                      <div>${o.address}, ${o.city} ${o.postal_code}</div>
+                    </div>
+                    <div class="order-items">
+                      ${items.map(it => `
+                        <div class="order-item-row">
+                          <img src="${it.image}" alt="${it.name}" />
+                          <div>${it.name}<br><small>${it.product_id}</small></div>
+                          <div>₺${Number(it.price).toFixed(2)}</div>
+                          <div>× ${it.qty}</div>
+                        </div>
+                      `).join('')}
+                    </div>
+                    <div style="margin-top:10px;display:flex;gap:10px;justify-content:flex-end;">
+                      <div>Ara Toplam: ₺${Number(o.subtotal).toFixed(2)}</div>
+                      <div>Kargo: ₺${Number(o.shipping).toFixed(2)}</div>
+                      <div><strong>Toplam: ₺${Number(o.total).toFixed(2)}</strong></div>
+                    </div>
+                    <div style="margin-top:14px;">
+                      <h4>İade Geçmişi</h4>
+                      ${
+                        refunds.length
+                          ? refunds.map(r => `<div>- ₺${Number(r.amount).toFixed(2)} • ${new Date(r.created_at).toLocaleString('tr-TR')} ${r.reference_no ? `(Ref: ${r.reference_no})` : ''}</div>`).join('')
+                          : '<div>İade kaydı yok.</div>'
+                      }
+                    </div>
+                `;
+                const m = document.getElementById('myOrderModal');
+                m.classList.add('visible');
+                m.setAttribute('aria-hidden','false');
+            } catch {
+                alert('Sipariş detayları alınamadı.');
+            }
+        });
+
+        document.getElementById('myOrderModalClose')?.addEventListener('click', () => {
+            const m = document.getElementById('myOrderModal');
+            m.classList.remove('visible');
+            m.setAttribute('aria-hidden','true');
+        });
+
+        document.getElementById('myOrderModal')?.addEventListener('click', (e) => {
+            if (e.target.id === 'myOrderModal'){
+                const m = document.getElementById('myOrderModal');
+                m.classList.remove('visible');
+                m.setAttribute('aria-hidden','true');
+            }
+        });
 
         // When navigating to #myorders, render list
         document.querySelector('a#myOrdersLink')?.addEventListener('click', () => {

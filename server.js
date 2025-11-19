@@ -99,6 +99,15 @@ async function initDb() {
       qty INTEGER NOT NULL
     );
   `);
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS refunds (
+      id SERIAL PRIMARY KEY,
+      order_id INTEGER REFERENCES orders(id) ON DELETE CASCADE,
+      amount NUMERIC(12,2) NOT NULL,
+      reference_no TEXT,
+      created_at TIMESTAMP DEFAULT NOW()
+    );
+  `);
 
   // Ensure settings single row
   const res = await pool.query(`SELECT id FROM settings WHERE id = TRUE`);
@@ -521,6 +530,11 @@ app.post('/api/orders/:id/refund', authMiddleware, adminOnly, async (req, res) =
       if (Number(return_amount) >= Number(order.total)) {
         await pool.query(`UPDATE orders SET status='refunded' WHERE id=$1`, [id]);
       }
+      // Refund kayıt
+      await pool.query(
+        `INSERT INTO refunds (order_id, amount, reference_no) VALUES ($1, $2, $3)`,
+        [id, Number(return_amount), data.reference_no || null]
+      );
       // E-posta bildirimi
       sendRefundEmail(order, Number(return_amount)).catch(() => {});
       return res.json({ ok: true, reference_no: data.reference_no || null });
@@ -738,7 +752,40 @@ app.get('/api/orders/:id', authMiddleware, adminOnly, async (req, res) => {
       `SELECT product_id, name, image, price, qty FROM order_items WHERE order_id = $1`,
       [id]
     );
-    res.json({ order: or.rows[0], items: items.rows });
+    const refunds = await pool.query(
+      `SELECT amount, reference_no, created_at FROM refunds WHERE order_id = $1 ORDER BY created_at DESC`,
+      [id]
+    );
+    res.json({ order: or.rows[0], items: items.rows, refunds: refunds.rows });
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Owner details (order + items + refunds)
+app.get('/api/orders/:id/owner', authMiddleware, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const or = await pool.query(
+      `SELECT id, user_id, email, name, address, city, postal_code, subtotal, shipping, total, status, created_at
+       FROM orders WHERE id = $1`,
+      [id]
+    );
+    if (or.rows.length === 0) return res.status(404).json({ error: 'Not found' });
+    const order = or.rows[0];
+    if (order.user_id !== req.user.id && req.user.role !== 'admin') {
+      return res.status(403).json({ error: 'Forbidden' });
+    }
+    const items = await pool.query(
+      `SELECT product_id, name, image, price, qty FROM order_items WHERE order_id = $1`,
+      [id]
+    );
+    const refunds = await pool.query(
+      `SELECT amount, reference_no, created_at FROM refunds WHERE order_id = $1 ORDER BY created_at DESC`,
+      [id]
+    );
+    res.json({ order, items: items.rows, refunds: refunds.rows });
   } catch (e) {
     console.error(e);
     res.status(500).json({ error: 'Server error' });
