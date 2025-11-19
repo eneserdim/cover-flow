@@ -835,13 +835,58 @@ https://templatemo.com/tm-595-3d-coverflow
                 display: flex;
             }
 
-            .menu-toggle {
-                display: flex;
-            }
+            .menu-toggle span {
+            width: 25px;
+            height: 3px;
+            background: white;
+            margin: 3px 0;
+            transition: 0.3s;
+            border-radius: 2px;
+        }
 
-            .menu-toggle.active span:nth-child(1) {
-                transform: rotate(-45deg) translate(-5px, 6px);
-            }
+        /* Auth actions */
+        .auth-actions {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .user-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            color: white;
+        }
+
+        /* Modal */
+        .modal-backdrop {
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.6);
+            backdrop-filter: blur(2px);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 1200;
+        }
+        .modal-backdrop.visible { display: flex; }
+        .modal-card {
+            width: 100%;
+            max-width: 420px;
+            background: rgba(255,255,255,0.05);
+            border: 1px solid rgba(255,255,255,0.15);
+            border-radius: 16px;
+            padding: 20px;
+            color: white;
+        }
+        .modal-card h3 {
+            margin-bottom: 12px;
+        }
+        .modal-actions {
+            display: flex;
+            gap: 8px;
+            justify-content: flex-end;
+            margin-top: 10px;
+        }
 
             .menu-toggle.active span:nth-child(2) {
                 opacity: 0;

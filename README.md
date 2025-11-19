@@ -1,22 +1,37 @@
-# Nordic Nature — E‑Ticaret Demo
+# Nordic Nature — E‑Ticaret Demo + Admin ve Auth
 
-Bu proje, TemplateMo 595 3D Coverflow temasını temel alarak profesyonel bir tek sayfa e‑ticaret deneyimine dönüştürülmüştür.
+Bu proje, TemplateMo 595 3D Coverflow temasını temel alarak profesyonel bir e‑ticaret deneyimine dönüştürülmüş, yönetim paneli ve basit kullanıcı kayıt/giriş sistemi ile zenginleştirilmiştir.
 
 Özellikler:
 - 3D kapak akışı ile etkileyici vitrin
-- Mağaza bölümü: arama, sıralama, ürün kartları
-- Sepet çekmecesi: miktar artır/azalt, kaldırma, ara toplam/teslimat/ toplam hesaplama
-- Ödeme bölümü: sipariş özeti ve basit form (demo)
-- LocalStorage ile sepet kalıcılığı
+- Mağaza: arama, sıralama, ürün kartları (LocalStorage üzerinden yönetilebilir)
+- Sepet: miktar artır/azalt, kaldır, ara toplam/kargo/toplam
+- Ödeme: sipariş özeti ve form (demo)
+- Admin paneli: site ayarları, ürün CRUD, kullanıcı yönetimi (LocalStorage)
+- Basit Auth: kullanıcı kayıt/giriş/çıkış (LocalStorage), ilk kullanıcı otomatik admin
 - Mobil uyumlu ve modern arayüz
 
 Kullanım:
-- index.html dosyasını herhangi bir statik sunucuda veya tarayıcıda açın.
-- Mağaza bölümünden ürün ekleyin, sağ üstteki “Sepet” butonu ile sepeti görüntüleyin.
+1) Giriş/Kayıt
+- Üst menüde “Giriş” veya “Kayıt Ol” ile kullanıcı oluşturun.
+- İlk kayıt olan kullanıcı admin olarak atanır.
+
+2) Admin Paneli
+- Admin olarak giriş yaptıktan sonra menüde “Admin” linki görünür.
+- Ürün ekleme/düzenleme/silme, site başlığı ve vitrin metinlerini kaydedebilirsiniz.
+
+3) Mağaza ve Sepet
+- Mağaza bölümünden ürünleri sepete ekleyin.
+- Sağ üstteki “Sepet” butonu ile sepeti açıp miktarları düzenleyin.
+- “Ödeme” bölümünde demo özeti görüntülenir.
 
 Notlar:
-- Ödeme akışı demo amaçlıdır, gerçek ödeme işlemi yapmaz.
-- Tüm görseller `images/` klasöründeki yerel dosyalardır.
+- Tüm veriler LocalStorage ile saklanır (demo amaçlıdır, gerçek üretim için sunucu ve veritabanı gerekir).
+- Gerçek ödeme entegrasyonu dahil değildir.
+- Görseller `images/` klasöründedir.
 
-Tasarım:
-- Taban stil ve etkileşimler TemplateMo 595 3D Coverflow’dan alınmış ve e‑ticaret deneyimine uygun olacak şekilde genişletilmiştir.
+Üretime Hazırlık Önerileri:
+- Backend: Node.js (Express) + PostgreSQL/SQLite veya Firebase/Supabase
+- Auth: JWT veya sağlayıcı tabanlı (Auth0/Clerk/Firebase Auth)
+- Ödeme: Stripe, iyzico veya PAYTR
+- Dosya ve ürün yönetimi: Admin UI + REST API
