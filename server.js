@@ -1,6 +1,6 @@
 /**
  * Nordic Nature — Express + PostgreSQL API
- * Auth (JWT), Products CRUD, Settings
+ * Auth (JWT), Products CRUD, Settings, Users admin
  */
 require('dotenv').config();
 const express = require('express');
@@ -234,11 +234,55 @@ app.put('/api/settings', authMiddleware, adminOnly, async (req, res) => {
   }
 });
 
+// Users (Admin)
+app.get('/api/users', authMiddleware, adminOnly, async (req, res) => {
+  try {
+    const r = await pool.query(`SELECT id, name, email, role, created_at FROM users ORDER BY created_at DESC`);
+    res.json({ users: r.rows });
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+app.put('/api/users/:id', authMiddleware, adminOnly, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { role, name } = req.body;
+    if (!role) return res.status(400).json({ error: 'Missing role' });
+    await pool.query(`UPDATE users SET role=$2, name=COALESCE($3, name) WHERE id=$1`, [id, role, name || null]);
+    res.json({ ok: true });
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+app.delete('/api/users/:id', authMiddleware, adminOnly, async (req, res) => {
+  try {
+    const { id } = req.params;
+    await pool.query(`DELETE FROM users WHERE id=$1`, [id]);
+    res.json({ ok: true });
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
 // Fallback to index.html for SPA-like routing if needed
 app.get('*', (req, res, next) => {
   if (req.path.startsWith('/api/')) return next();
   res.sendFile(path.join(__dirname, 'index.html'));
 });
+
+initDb()
+  .then(() => {
+    app.listen(PORT, () => console.log(`API running on http://localhost:${PORT}`));
+  })
+  .catch((e) => {
+    console.error('DB init error:', e);
+    process.exit(1);
+  });
 
 initDb()
   .then(() => {

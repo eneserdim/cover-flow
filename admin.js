@@ -249,8 +249,10 @@
     pId.value = ''; pName.value=''; pImage.value=''; pPrice.value='';
   });
 
-  function renderUsers(){
-    const users = getUsers();
+  async function renderUsers(){
+    // Öncelik API
+    const data = await apiFetch('/users');
+    const users = data?.users || [];
     userList.innerHTML = '';
     if (users.length === 0){
       const hint = document.createElement('div');
@@ -265,31 +267,30 @@
         <div>${u.name || '(isim yok)'}<br><small>${u.email}</small></div>
         <div>${u.role || 'user'}</div>
         <div style="display:flex; gap:6px;">
-          <button class="btn" data-email="${u.email}" data-action="make-admin">Admin Yap</button>
-          <button class="btn" data-email="${u.email}" data-action="delete">Sil</button>
+          <button class="btn" data-id="${u.id}" data-action="make-admin">Admin Yap</button>
+          <button class="btn" data-id="${u.id}" data-action="delete">Sil</button>
         </div>
       `;
       userList.appendChild(row);
     });
   }
 
-  userList?.addEventListener('click', (e) => {
+  userList?.addEventListener('click', async (e) => {
     const btn = e.target.closest('button[data-action]');
     if (!btn) return;
-    const email = btn.getAttribute('data-email');
+    const id = btn.getAttribute('data-id');
     const action = btn.getAttribute('data-action');
-    const users = getUsers();
-    const idx = users.findIndex(x => x.email === email);
-    if (idx < 0) return;
+
+    // API üzerinden yönetim
     if (action === 'make-admin'){
-      users[idx].role = 'admin';
-      saveUsers(users);
-      renderUsers();
+      const ok = await apiFetch(`/users/${id}`, { method: 'PUT', body: JSON.stringify({ role: 'admin' }) });
+      if (!ok) return alert('Güncelleme başarısız.');
+      await renderUsers();
       alert('Kullanıcı admin yapıldı.');
     } else if (action === 'delete'){
-      users.splice(idx, 1);
-      saveUsers(users);
-      renderUsers();
+      const ok = await apiFetch(`/users/${id}`, { method: 'DELETE' });
+      if (!ok) return alert('Silme başarısız.');
+      await renderUsers();
       alert('Kullanıcı silindi.');
     }
   });
