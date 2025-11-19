@@ -63,9 +63,15 @@ async function initDb() {
       id BOOLEAN PRIMARY KEY DEFAULT TRUE,
       site_title TEXT,
       hero_title TEXT,
-      hero_desc TEXT
+      hero_desc TEXT,
+      paytr_test_mode INT DEFAULT 1,
+      paytr_callback_url TEXT
     );
   `);
+  // Add columns if missing (migrations-lite)
+  await pool.query(`ALTER TABLE settings ADD COLUMN IF NOT EXISTS paytr_test_mode INT DEFAULT 1;`);
+  await pool.query(`ALTER TABLE settings ADD COLUMN IF NOT EXISTS paytr_callback_url TEXT;`);
+
   await pool.query(`
     CREATE TABLE IF NOT EXISTS orders (
       id SERIAL PRIMARY KEY,
@@ -98,8 +104,8 @@ async function initDb() {
   const res = await pool.query(`SELECT id FROM settings WHERE id = TRUE`);
   if (res.rows.length === 0) {
     await pool.query(
-      `INSERT INTO settings (id, site_title, hero_title, hero_desc) VALUES (TRUE, $1, $2, $3)`,
-      ['Nordic Nature', 'Mountain Landscape', 'Majestic peaks covered in snow during golden hour']
+      `INSERT INTO settings (id, site_title, hero_title, hero_desc, paytr_test_mode, paytr_callback_url) VALUES (TRUE, $1, $2, $3, 1, $4)`,
+      ['Nordic Nature', 'Mountain Landscape', 'Majestic peaks covered in snow during golden hour', process.env.PAYTR_CALLBACK_FULL_URL || null]
     );
   }
 }
@@ -310,7 +316,7 @@ app.delete('/api/products/:id', authMiddleware, adminOnly, async (req, res) => {
 // Settings
 app.get('/api/settings', async (req, res) => {
   try {
-    const r = await pool.query(`SELECT site_title, hero_title, hero_desc FROM settings WHERE id = TRUE`);
+    const r = await pool.query(`SELECT site_title, hero_title, hero_desc, paytr_test_mode, paytr_callback_url FROM settings WHERE id = TRUE`);
     res.json(r.rows[0] || {});
   } catch (e) {
     console.error(e);
@@ -320,10 +326,10 @@ app.get('/api/settings', async (req, res) => {
 
 app.put('/api/settings', authMiddleware, adminOnly, async (req, res) => {
   try {
-    const { site_title, hero_title, hero_desc } = req.body;
+    const { site_title, hero_title, hero_desc, paytr_test_mode, paytr_callback_url } = req.body;
     await pool.query(
-      `UPDATE settings SET site_title=$1, hero_title=$2, hero_desc=$3 WHERE id = TRUE`,
-      [site_title, hero_title, hero_desc]
+      `UPDATE settings SET site_title=$1, hero_title=$2, hero_desc=$3, paytr_test_mode=COALESCE($4, paytr_test_mode), paytr_callback_url=COALESCE($5, paytr_callback_url) WHERE id = TRUE`,
+      [site_title, hero_title, hero_desc, paytr_test_mode, paytr_callback_url]
     );
     res.json({ ok: true });
   } catch (e) {
@@ -432,19 +438,99 @@ app.post('/api/paytr/init', authMiddleware, async (req, res) => {
     const { orderId } = req.body;
     if (!orderId) return res.status(400).json({ error: 'Missing orderId' });
 
-    const credOk = process.env.PAYTR_MERCHANT_ID && process.env.PAYTR_MERCHANT_KEY && process.env.PAYTR_MERCHANT_SALT;
-    if (!credOk) {
+    const MERCHANT_ID = process.env.PAYTR_MERCHANT_ID;
+    const MERCHANT_KEY = process.env.PAYTR_MERCHANT_KEY;
+    const MERCHANT_SALT = process.env.PAYTR_MERCHANT_SALT;
+    if (!MERCHANT_ID || !MERCHANT_KEY || !MERCHANT_SALT) {
       return res.json({ enabled: false, reason: 'PAYTR credentials not configured' });
     }
 
+    // Settings override for test_mode and callback
+    const s = await pool.query(`SELECT paytr_test_mode, paytr_callback_url FROM settings WHERE id = TRUE`);
+    const TEST_MODE = s.rows[0]?.paytr_test_mode ?? Number(process.env.PAYTR_TEST_MODE || 0);
+    const CALLBACK_URL = s.rows[0]?.paytr_callback_url || process.env.PAYTR_CALLBACK_FULL_URL || '';
+
     // Load order totals
-    const or = await pool.query(`SELECT id, email, name, total FROM orders WHERE id=$1`, [orderId]);
+    const or = await pool.query(`SELECT id, email, name, total, address, city, postal_code FROM orders WHERE id=$1`, [orderId]);
     if (or.rows.length === 0) return res.status(404).json({ error: 'Order not found' });
     const order = or.rows[0];
 
-    // Prepare minimal response instructing frontend to open iframe URL once token acquired.
-    // Implementing full token generation requires PAYTR signature specifics.
-    return res.json({ enabled: true, requiresConfiguration: true, message: 'PAYTR entegrasyonu için merchant bilgileri ve token oluşturma akışı tamamlanmalı.' });
+    // Prepare PAYTR fields
+    const user_ip = (req.headers['x-forwarded-for'] || '').split(',')[0] || req.socket.remoteAddress || '127.0.0.1';
+    const merchant_oid = String(orderId);
+    const email = order.email;
+    const payment_amount = Math.round(Number(order.total) * 100); // TL -> kuruş
+    const payment_type = 'card';
+    const installment_count = 1;
+    const currency = 'TL';
+    const test_mode = Number(TEST_MODE) ? 1 : 0;
+    const non_3d = 0;
+    const user_name = order.name || '';
+    const user_address = `${order.address}, ${order.city} ${order.postal_code}`;
+    const user_phone = ''; // optional
+    const merchant_ok_url = `${req.protocol}://${req.get('host')}/index.html#ok`;
+    const merchant_fail_url = `${req.protocol}://${req.get('host')}/index.html#fail`;
+    const no_installment = 0;
+    const max_installment = 12;
+    const debug_on = test_mode ? 1 : 0;
+    const callback_url = CALLBACK_URL || `${req.protocol}://${req.get('host')}/api/paytr/callback`;
+
+    // Basket: basic single-line
+    const basket = [[`Sipariş #${orderId}`, (payment_amount/100).toFixed(2), 1]];
+    const user_basket = Buffer.from(JSON.stringify(basket)).toString('base64');
+
+    // Token
+    const hash_str = MERCHANT_ID + user_ip + merchant_oid + email + payment_amount + payment_type + installment_count + currency + test_mode + non_3d;
+    const crypto = require('crypto');
+    const paytr_token = Buffer.from(
+      crypto.createHmac('sha256', MERCHANT_KEY)
+        .update(hash_str + MERCHANT_SALT, 'utf8')
+        .digest()
+    ).toString('base64');
+
+    // Request token from PAYTR
+    const params = new URLSearchParams({
+      merchant_id: MERCHANT_ID,
+      user_ip,
+      merchant_oid,
+      email,
+      payment_amount: String(payment_amount),
+      payment_type,
+      installment_count: String(installment_count),
+      currency,
+      test_mode: String(test_mode),
+      non_3d: String(non_3d),
+      paytr_token,
+      user_name,
+      user_address,
+      user_phone,
+      merchant_ok_url,
+      merchant_fail_url,
+      user_basket,
+      no_installment: String(no_installment),
+      max_installment: String(max_installment),
+      debug_on: String(debug_on),
+      callback_url
+    });
+
+    const fetchMod = await import('node-fetch');
+    const fetch = fetchMod.default;
+    const resp = await fetch('https://www.paytr.com/odeme/api/get-token', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: params.toString()
+    });
+
+    const data = await resp.json().catch(async () => {
+      const text = await resp.text();
+      return { status: 'error', err_msg: text };
+    });
+
+    if (data && data.status === 'success' && data.token) {
+      return res.json({ enabled: true, token: data.token });
+    } else {
+      return res.json({ enabled: false, reason: data?.err_msg || 'PAYTR token error' });
+    }
   } catch (e) {
     console.error(e);
     res.status(500).json({ error: 'Server error' });

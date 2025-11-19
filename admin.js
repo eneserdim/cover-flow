@@ -74,6 +74,8 @@
   const siteTitleInput = document.getElementById('siteTitleInput');
   const heroTitleInput = document.getElementById('heroTitleInput');
   const heroDescInput = document.getElementById('heroDescInput');
+  const paytrTestModeInput = document.getElementById('paytrTestMode');
+  const paytrCallbackUrlInput = document.getElementById('paytrCallbackUrl');
   const saveSettingsBtn = document.getElementById('saveSettings');
 
   /* Products */
@@ -97,6 +99,8 @@
         if (siteTitleInput) siteTitleInput.value = s.site_title || 'Nordic Nature';
         if (heroTitleInput) heroTitleInput.value = s.hero_title || 'Mountain Landscape';
         if (heroDescInput) heroDescInput.value = s.hero_desc || 'Majestic peaks covered in snow during golden hour';
+        if (paytrTestModeInput) paytrTestModeInput.value = (s.paytr_test_mode ?? 1);
+        if (paytrCallbackUrlInput) paytrCallbackUrlInput.value = s.paytr_callback_url || '';
       }
       await renderProductsApi();
       await renderOrders();
@@ -116,6 +120,8 @@
       site_title: (siteTitleInput.value || '').trim(),
       hero_title: (heroTitleInput.value || '').trim(),
       hero_desc: (heroDescInput.value || '').trim(),
+      paytr_test_mode: Number(paytrTestModeInput?.value || 1),
+      paytr_callback_url: (paytrCallbackUrlInput?.value || '').trim() || null
     };
     const ok = await apiFetch('/settings', { method: 'PUT', body: JSON.stringify(s) });
     if (ok) {
